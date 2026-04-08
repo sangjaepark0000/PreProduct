@@ -1,0 +1,1951 @@
+diff --git a/README.md b/README.md
+index e215bc4..e6f73a0 100644
+--- a/README.md
++++ b/README.md
+@@ -34,3 +34,26 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
+ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+ 
+ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
++## BMad Git Automation
++
++Use local automation to keep branch and commit history consistent during BMad work.
++
++### Commands
++```powershell
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 init -Slug "bmad-git-automation" -CreateBaselineCommit
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 commit -Slug "bmad-git-automation" -Phase "step-03" -Tag "auto"
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 self-check
++```
++
++### One-command wrapper
++```powershell
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Init -Slug "bmad-git-automation" -CreateBaselineCommit
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Slug "bmad-git-automation" -Step implement
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Slug "bmad-git-auto-management" -FromSpec
++```
++See `README.bmad-git.md` for details.
++
++### Safety
++- No auto-push
++- No history rewrite
++- No destructive git commands
+diff --git a/package.json b/package.json
+index 2a4eb37..35bacc1 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,9 @@
+     "dev": "next dev",
+     "build": "next build",
+     "start": "next start",
+-    "lint": "eslint"
++    "lint": "eslint .",
++    "typecheck": "tsc --noEmit",
++    "test:e2e": "playwright test"
+   },
+   "dependencies": {
+     "next": "16.2.2",
+@@ -14,6 +16,7 @@
+     "react-dom": "19.2.4"
+   },
+   "devDependencies": {
++    "@playwright/test": "^1.59.1",
+     "@types/node": "^20",
+     "@types/react": "^19",
+     "@types/react-dom": "^19",
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 6c1e83c..6e96826 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -10,7 +10,7 @@ importers:
+     dependencies:
+       next:
+         specifier: 16.2.2
+-        version: 16.2.2(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
++        version: 16.2.2(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+       react:
+         specifier: 19.2.4
+         version: 19.2.4
+@@ -18,6 +18,9 @@ importers:
+         specifier: 19.2.4
+         version: 19.2.4(react@19.2.4)
+     devDependencies:
++      '@playwright/test':
++        specifier: ^1.59.1
++        version: 1.59.1
+       '@types/node':
+         specifier: ^20
+         version: 20.19.39
+@@ -415,6 +418,11 @@ packages:
+     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
+     engines: {node: '>=12.4.0'}
+ 
++  '@playwright/test@1.59.1':
++    resolution: {integrity: sha512-PG6q63nQg5c9rIi4/Z5lR5IVF7yU5MqmKaPOe0HSc0O2cX1fPi96sUQu5j7eo4gKCkB2AnNGoWt7y4/Xx3Kcqg==}
++    engines: {node: '>=18'}
++    hasBin: true
++
+   '@rtsao/scc@1.1.0':
+     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
+ 
+@@ -1024,6 +1032,11 @@ packages:
+     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
+     engines: {node: '>= 0.4'}
+ 
++  fsevents@2.3.2:
++    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
++    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
++    os: [darwin]
++
+   function-bind@1.1.2:
+     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
+ 
+@@ -1449,6 +1462,16 @@ packages:
+     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
+     engines: {node: '>=12'}
+ 
++  playwright-core@1.59.1:
++    resolution: {integrity: sha512-HBV/RJg81z5BiiZ9yPzIiClYV/QMsDCKUyogwH9p3MCP6IYjUFu/MActgYAvK0oWyV9NlwM3GLBjADyWgydVyg==}
++    engines: {node: '>=18'}
++    hasBin: true
++
++  playwright@1.59.1:
++    resolution: {integrity: sha512-C8oWjPR3F81yljW9o5OxcWzfh6avkVwDD2VYdwIGqTkl+OGFISgypqzfu7dOe4QNLL2aqcWBmI3PMtLIK233lw==}
++    engines: {node: '>=18'}
++    hasBin: true
++
+   possible-typed-array-names@1.1.0:
+     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
+     engines: {node: '>= 0.4'}
+@@ -2091,6 +2114,10 @@ snapshots:
+ 
+   '@nolyfill/is-core-module@1.0.39': {}
+ 
++  '@playwright/test@1.59.1':
++    dependencies:
++      playwright: 1.59.1
++
+   '@rtsao/scc@1.1.0': {}
+ 
+   '@swc/helpers@0.5.15':
+@@ -2614,7 +2641,7 @@ snapshots:
+       eslint: 9.39.4
+       eslint-import-resolver-node: 0.3.10
+       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4))(eslint@9.39.4)
+-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4)
++      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4))(eslint@9.39.4))(eslint@9.39.4)
+       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.4)
+       eslint-plugin-react: 7.37.5(eslint@9.39.4)
+       eslint-plugin-react-hooks: 7.0.1(eslint@9.39.4)
+@@ -2647,7 +2674,7 @@ snapshots:
+       tinyglobby: 0.2.15
+       unrs-resolver: 1.11.1
+     optionalDependencies:
+-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4)
++      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4))(eslint@9.39.4))(eslint@9.39.4)
+     transitivePeerDependencies:
+       - supports-color
+ 
+@@ -2662,7 +2689,7 @@ snapshots:
+     transitivePeerDependencies:
+       - supports-color
+ 
+-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.4):
++  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4))(eslint@9.39.4))(eslint@9.39.4):
+     dependencies:
+       '@rtsao/scc': 1.1.0
+       array-includes: 3.1.9
+@@ -2857,6 +2884,9 @@ snapshots:
+     dependencies:
+       is-callable: 1.2.7
+ 
++  fsevents@2.3.2:
++    optional: true
++
+   function-bind@1.1.2: {}
+ 
+   function.prototype.name@1.1.8:
+@@ -3174,7 +3204,7 @@ snapshots:
+ 
+   natural-compare@1.4.0: {}
+ 
+-  next@16.2.2(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
++  next@16.2.2(@babel/core@7.29.0)(@playwright/test@1.59.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+     dependencies:
+       '@next/env': 16.2.2
+       '@swc/helpers': 0.5.15
+@@ -3193,6 +3223,7 @@ snapshots:
+       '@next/swc-linux-x64-musl': 16.2.2
+       '@next/swc-win32-arm64-msvc': 16.2.2
+       '@next/swc-win32-x64-msvc': 16.2.2
++      '@playwright/test': 1.59.1
+       sharp: 0.34.5
+     transitivePeerDependencies:
+       - '@babel/core'
+@@ -3288,6 +3319,14 @@ snapshots:
+ 
+   picomatch@4.0.4: {}
+ 
++  playwright-core@1.59.1: {}
++
++  playwright@1.59.1:
++    dependencies:
++      playwright-core: 1.59.1
++    optionalDependencies:
++      fsevents: 2.3.2
++
+   possible-typed-array-names@1.1.0: {}
+ 
+   postcss@8.4.31:
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 4c18fb3..7bfd252 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -26,7 +26,7 @@ body {
+   flex-direction: column;
+   color: var(--foreground);
+   background: var(--background);
+-  font-family: Arial, Helvetica, sans-serif;
++  font-family: "Segoe UI", "Noto Sans KR", sans-serif;
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale;
+ }
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 1da6a2f..d32a668 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -1,20 +1,10 @@
+ import type { Metadata } from "next";
+-import { Geist, Geist_Mono } from "next/font/google";
++import { env } from "@/shared/config/env";
+ import "./globals.css";
+ 
+-const geistSans = Geist({
+-  variable: "--font-geist-sans",
+-  subsets: ["latin"],
+-});
+-
+-const geistMono = Geist_Mono({
+-  variable: "--font-geist-mono",
+-  subsets: ["latin"],
+-});
+-
+ export const metadata: Metadata = {
+-  title: "Create Next App",
+-  description: "Generated by create next app",
++  title: env.NEXT_PUBLIC_APP_NAME,
++  description: "PreProduct 초기 제품 골격",
+ };
+ 
+ export default function RootLayout({
+@@ -23,7 +13,7 @@ export default function RootLayout({
+   children: React.ReactNode;
+ }>) {
+   return (
+-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
++    <html lang="ko">
+       <body>{children}</body>
+     </html>
+   );
+diff --git a/src/app/page.module.css b/src/app/page.module.css
+deleted file mode 100644
+index 643fe27..0000000
+--- a/src/app/page.module.css
++++ /dev/null
+@@ -1,142 +0,0 @@
+-.page {
+-  --background: #fafafa;
+-  --foreground: #fff;
+-
+-  --text-primary: #000;
+-  --text-secondary: #666;
+-
+-  --button-primary-hover: #383838;
+-  --button-secondary-hover: #f2f2f2;
+-  --button-secondary-border: #ebebeb;
+-
+-  display: flex;
+-  flex: 1;
+-  flex-direction: column;
+-  align-items: center;
+-  justify-content: center;
+-  font-family: var(--font-geist-sans);
+-  background-color: var(--background);
+-}
+-
+-.main {
+-  display: flex;
+-  flex: 1;
+-  width: 100%;
+-  max-width: 800px;
+-  flex-direction: column;
+-  align-items: flex-start;
+-  justify-content: space-between;
+-  background-color: var(--foreground);
+-  padding: 120px 60px;
+-}
+-
+-.intro {
+-  display: flex;
+-  flex-direction: column;
+-  align-items: flex-start;
+-  text-align: left;
+-  gap: 24px;
+-}
+-
+-.intro h1 {
+-  max-width: 320px;
+-  font-size: 40px;
+-  font-weight: 600;
+-  line-height: 48px;
+-  letter-spacing: -2.4px;
+-  text-wrap: balance;
+-  color: var(--text-primary);
+-}
+-
+-.intro p {
+-  max-width: 440px;
+-  font-size: 18px;
+-  line-height: 32px;
+-  text-wrap: balance;
+-  color: var(--text-secondary);
+-}
+-
+-.intro a {
+-  font-weight: 500;
+-  color: var(--text-primary);
+-}
+-
+-.ctas {
+-  display: flex;
+-  flex-direction: row;
+-  width: 100%;
+-  max-width: 440px;
+-  gap: 16px;
+-  font-size: 14px;
+-}
+-
+-.ctas a {
+-  display: flex;
+-  justify-content: center;
+-  align-items: center;
+-  height: 40px;
+-  padding: 0 16px;
+-  border-radius: 128px;
+-  border: 1px solid transparent;
+-  transition: 0.2s;
+-  cursor: pointer;
+-  width: fit-content;
+-  font-weight: 500;
+-}
+-
+-a.primary {
+-  background: var(--text-primary);
+-  color: var(--background);
+-  gap: 8px;
+-}
+-
+-a.secondary {
+-  border-color: var(--button-secondary-border);
+-}
+-
+-/* Enable hover only on non-touch devices */
+-@media (hover: hover) and (pointer: fine) {
+-  a.primary:hover {
+-    background: var(--button-primary-hover);
+-    border-color: transparent;
+-  }
+-
+-  a.secondary:hover {
+-    background: var(--button-secondary-hover);
+-    border-color: transparent;
+-  }
+-}
+-
+-@media (max-width: 600px) {
+-  .main {
+-    padding: 48px 24px;
+-  }
+-
+-  .intro {
+-    gap: 16px;
+-  }
+-
+-  .intro h1 {
+-    font-size: 32px;
+-    line-height: 40px;
+-    letter-spacing: -1.92px;
+-  }
+-}
+-
+-@media (prefers-color-scheme: dark) {
+-  .logo {
+-    filter: invert();
+-  }
+-
+-  .page {
+-    --background: #000;
+-    --foreground: #000;
+-
+-    --text-primary: #ededed;
+-    --text-secondary: #999;
+-
+-    --button-primary-hover: #ccc;
+-    --button-secondary-hover: #1a1a1a;
+-    --button-secondary-border: #1a1a1a;
+-  }
+-}
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+deleted file mode 100644
+index 7b947a2..0000000
+--- a/src/app/page.tsx
++++ /dev/null
+@@ -1,66 +0,0 @@
+-import Image from "next/image";
+-import styles from "./page.module.css";
+-
+-export default function Home() {
+-  return (
+-    <div className={styles.page}>
+-      <main className={styles.main}>
+-        <Image
+-          className={styles.logo}
+-          src="/next.svg"
+-          alt="Next.js logo"
+-          width={100}
+-          height={20}
+-          priority
+-        />
+-        <div className={styles.intro}>
+-          <h1>To get started, edit the page.tsx file.</h1>
+-          <p>
+-            Looking for a starting point or more instructions? Head over to{" "}
+-            <a
+-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-              target="_blank"
+-              rel="noopener noreferrer"
+-            >
+-              Templates
+-            </a>{" "}
+-            or the{" "}
+-            <a
+-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-              target="_blank"
+-              rel="noopener noreferrer"
+-            >
+-              Learning
+-            </a>{" "}
+-            center.
+-          </p>
+-        </div>
+-        <div className={styles.ctas}>
+-          <a
+-            className={styles.primary}
+-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
+-            target="_blank"
+-            rel="noopener noreferrer"
+-          >
+-            <Image
+-              className={styles.logo}
+-              src="/vercel.svg"
+-              alt="Vercel logomark"
+-              width={16}
+-              height={16}
+-            />
+-            Deploy Now
+-          </a>
+-          <a
+-            className={styles.secondary}
+-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
+-            target="_blank"
+-            rel="noopener noreferrer"
+-          >
+-            Documentation
+-          </a>
+-        </div>
+-      </main>
+-    </div>
+-  );
+-}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\.github\\workflows\\ci.yml" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\.github\\workflows\\ci.yml"
+new file mode 100644
+index 0000000..1f057e1
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\.github\\workflows\\ci.yml"
+@@ -0,0 +1,40 @@
++name: CI Baseline
++
++on:
++  pull_request:
++  push:
++    branches:
++      - main
++
++jobs:
++  quality:
++    runs-on: ubuntu-latest
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Setup pnpm
++        uses: pnpm/action-setup@v4
++        with:
++          version: 10
++
++      - name: Setup Node.js
++        uses: actions/setup-node@v4
++        with:
++          node-version: "20.9.0"
++          cache: pnpm
++
++      - name: Install dependencies
++        run: pnpm install --frozen-lockfile
++
++      - name: Lint
++        run: pnpm lint
++
++      - name: Typecheck
++        run: pnpm typecheck
++
++      - name: Reserve Contracts Gate
++        run: echo "Story 1.4에서 계약 검증 게이트 추가 예정"
++
++      - name: Reserve Perf Budget Gate
++        run: echo "Story 1.4에서 성능 예산 게이트 추가 예정"
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\README.bmad-git.md" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\README.bmad-git.md"
+new file mode 100644
+index 0000000..71c6ca6
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\README.bmad-git.md"
+@@ -0,0 +1,29 @@
++## BMad Git Automation
++
++Use local automation to keep branch and commit history consistent during BMad work.
++
++### Commands
++```powershell
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 init -Slug "bmad-git-automation" -CreateBaselineCommit
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 commit -Slug "bmad-git-automation" -Phase "step-03" -Tag "auto"
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 self-check
++```
++
++### One-command auto wrapper
++```powershell
++# start work (branch + optional baseline commit)
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Init -Slug "bmad-git-automation" -CreateBaselineCommit
++
++# commit by step alias
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Slug "bmad-git-automation" -Step implement
++
++# or infer step from spec status
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Slug "bmad-git-auto-management" -FromSpec
++```
++
++Step alias map: `plan -> step-02`, `implement -> step-03`, `review -> step-04`, `present -> step-05`.
++
++### Safety
++- No auto-push
++- No history rewrite
++- No destructive git commands
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\playwright.config.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\playwright.config.ts"
+new file mode 100644
+index 0000000..e2b25ea
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\playwright.config.ts"
+@@ -0,0 +1,37 @@
++import { defineConfig, devices } from "@playwright/test";
++
++export default defineConfig({
++  testDir: "./tests/e2e",
++  fullyParallel: true,
++  retries: 0,
++  reporter: "list",
++  use: {
++    baseURL: "http://localhost:3000",
++    trace: "on-first-retry",
++  },
++  webServer: {
++    command: "pnpm dev --port 3000",
++    env: {
++      NEXT_PUBLIC_APP_NAME: "PreProduct",
++    },
++    url: "http://localhost:3000",
++    reuseExistingServer: false,
++    timeout: 120000,
++  },
++  projects: [
++    {
++      name: "chrome",
++      use: {
++        ...devices["Desktop Chrome"],
++        channel: "chrome",
++      },
++    },
++    {
++      name: "mobile-chrome-390x844",
++      use: {
++        ...devices["Pixel 5"],
++        viewport: { width: 390, height: 844 },
++      },
++    },
++  ],
++});
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-auto.ps1" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-auto.ps1"
+new file mode 100644
+index 0000000..f02bc34
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-auto.ps1"
+@@ -0,0 +1,90 @@
++[CmdletBinding(DefaultParameterSetName='step')]
++param(
++  [Parameter(Mandatory = $true)]
++  [string]$Slug,
++
++  [Parameter(ParameterSetName='init')]
++  [switch]$Init,
++
++  [Parameter(ParameterSetName='step')]
++  [ValidateSet('step-02','step-03','step-04','step-05','plan','implement','review','present')]
++  [string]$Step,
++
++  [Parameter(ParameterSetName='step')]
++  [switch]$FromSpec,
++
++  [string]$Tag = 'auto',
++  [switch]$CreateBaselineCommit,
++  [switch]$DryRun
++)
++
++Set-StrictMode -Version Latest
++$ErrorActionPreference = 'Stop'
++
++function Fail([string]$Message) {
++  Write-Output "ERROR: $Message"
++  exit 1
++}
++
++function Resolve-StepAlias([string]$Value) {
++  switch ($Value) {
++    'plan' { return 'step-02' }
++    'implement' { return 'step-03' }
++    'review' { return 'step-04' }
++    'present' { return 'step-05' }
++    default { return $Value }
++  }
++}
++
++function Resolve-StepFromSpec([string]$SlugValue) {
++  $specPath = Join-Path $PSScriptRoot "../../_bmad-output/implementation-artifacts/spec-$SlugValue.md"
++  if (-not (Test-Path $specPath)) {
++    Fail "Spec file not found for slug: $SlugValue ($specPath)"
++  }
++
++  $content = Get-Content -Path $specPath
++  $statusLine = $content | Where-Object { $_ -match "^status:\s*'([^']+)'" } | Select-Object -First 1
++  if (-not $statusLine) {
++    Fail "Could not read spec status from: $specPath"
++  }
++
++  $null = ($statusLine -match "^status:\s*'([^']+)'")
++  $status = $Matches[1]
++
++  switch ($status) {
++    'ready-for-dev' { return 'step-02' }
++    'in-progress' { return 'step-03' }
++    'in-review' { return 'step-04' }
++    'done' { return 'step-05' }
++    default { Fail "Unsupported spec status for auto-step: $status" }
++  }
++}
++
++$gitScript = Join-Path $PSScriptRoot 'bmad-git.ps1'
++if (-not (Test-Path $gitScript)) {
++  Fail "Missing dependency: $gitScript"
++}
++
++if ($Init) {
++  $args = @('init', '-Slug', $Slug, '-RepositoryPath', '.')
++  if ($CreateBaselineCommit) { $args += '-CreateBaselineCommit' }
++  if ($DryRun) { $args += '-DryRun' }
++
++  & powershell -ExecutionPolicy Bypass -File $gitScript @args
++  exit $LASTEXITCODE
++}
++
++$resolvedStep = $null
++if ($FromSpec) {
++  $resolvedStep = Resolve-StepFromSpec -SlugValue $Slug
++} elseif ($Step) {
++  $resolvedStep = Resolve-StepAlias -Value $Step
++} else {
++  Fail 'Use -Step or -FromSpec for step mode.'
++}
++
++$commitArgs = @('commit', '-Slug', $Slug, '-Phase', $resolvedStep, '-Tag', $Tag, '-RepositoryPath', '.')
++if ($DryRun) { $commitArgs += '-DryRun' }
++
++& powershell -ExecutionPolicy Bypass -File $gitScript @commitArgs
++exit $LASTEXITCODE
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-git.examples.ps1" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-git.examples.ps1"
+new file mode 100644
+index 0000000..b189d56
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-git.examples.ps1"
+@@ -0,0 +1,13 @@
++# Example 1: baseline commit + feature branch prep
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 init -Slug "bmad-git-automation" -CreateBaselineCommit
++
++# Example 2: step commit (auto-checkout feat/<slug> first)
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 commit -Slug "bmad-git-automation" -Phase "step-03" -Tag "auto"
++
++# Example 3: validation checks (no side effects on your repo)
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-git.ps1 self-check
++
++# Example 4: one-command wrapper
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Init -Slug "bmad-git-automation" -CreateBaselineCommit
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Slug "bmad-git-automation" -Step implement
++powershell -ExecutionPolicy Bypass -File .\scripts\bmad-auto.ps1 -Slug "bmad-git-automation" -FromSpec
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-git.ps1" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-git.ps1"
+new file mode 100644
+index 0000000..f3a2ad8
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\scripts\\bmad-git.ps1"
+@@ -0,0 +1,315 @@
++[CmdletBinding()]
++param(
++  [Parameter(Position = 0)]
++  [ValidateSet('init', 'commit', 'self-check')]
++  [string]$Mode,
++
++  [string]$Slug,
++  [string]$Phase,
++  [string]$Tag = 'auto',
++  [string]$RepositoryPath,
++  [string]$BranchPrefix,
++  [string]$CommitPattern,
++  [switch]$CreateBaselineCommit,
++  [switch]$DryRun
++)
++
++Set-StrictMode -Version Latest
++$ErrorActionPreference = 'Stop'
++if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
++  $PSNativeCommandUseErrorActionPreference = $false
++}
++
++function Fail([string]$Message) {
++  Write-Output "ERROR: $Message"
++  exit 1
++}
++
++function Test-ValidSlug([string]$Value) {
++  return $Value -match '^[a-z0-9]+(?:-[a-z0-9]+)*$'
++}
++
++function Test-ValidPhase([string]$Value) {
++  return $Value -match '^[a-z0-9]+(?:-[a-z0-9]+)*$'
++}
++
++function Test-ValidTag([string]$Value) {
++  return $Value -match '^[a-z0-9]+(?:-[a-z0-9]+)*$'
++}
++
++function Get-BmadGitDefaults {
++  $result = @{
++    BranchPrefix = 'feat'
++    CommitPattern = 'bmad({phase}): {slug} [{tag}]'
++  }
++
++  $configCandidates = @(
++    (Join-Path (Resolve-Path -Path (Join-Path $PSScriptRoot '..')).Path '_bmad/bmm/config.yaml'),
++    (Join-Path (Get-Location).Path '_bmad/bmm/config.yaml')
++  ) | Select-Object -Unique
++
++  $configPath = $null
++  foreach ($candidate in $configCandidates) {
++    if (Test-Path $candidate) {
++      $configPath = $candidate
++      break
++    }
++  }
++
++  if (-not $configPath) {
++    return $result
++  }
++
++  $lines = Get-Content -Path $configPath
++  $inBlock = $false
++  foreach ($line in $lines) {
++    if ($line -match '^\s*bmad_git:\s*$') {
++      $inBlock = $true
++      continue
++    }
++
++    if (-not $inBlock) {
++      continue
++    }
++
++    if ($line -match '^\S') {
++      break
++    }
++
++    if ($line -match '^\s*branch_prefix:\s*"?([^"#\r\n]+)"?\s*$') {
++      $result.BranchPrefix = $Matches[1].Trim()
++      continue
++    }
++
++    if ($line -match '^\s*commit_pattern:\s*"?([^"\r\n]+)"?\s*$') {
++      $result.CommitPattern = $Matches[1].Trim()
++      continue
++    }
++  }
++
++  return $result
++}
++
++function Resolve-RepoCandidate([string]$PathValue) {
++  try {
++    return (Resolve-Path -Path $PathValue -ErrorAction Stop).Path
++  } catch {
++    return $null
++  }
++}
++
++function Get-GitTopLevel([string]$Candidate) {
++  $output = & cmd /c "git -C `"$Candidate`" rev-parse --show-toplevel 2>nul"
++  if ($LASTEXITCODE -ne 0) {
++    return $null
++  }
++
++  $joined = ($output -join "`n").Trim()
++  if ([string]::IsNullOrWhiteSpace($joined)) {
++    return $null
++  }
++
++  return $joined
++}
++
++function Find-GitRepo([string]$ExplicitPath) {
++  $candidates = @()
++
++  if ($ExplicitPath) {
++    $resolved = Resolve-RepoCandidate -PathValue $ExplicitPath
++    if (-not $resolved) {
++      Fail "Git repository path is invalid: $ExplicitPath"
++    }
++    $candidates += $resolved
++  } else {
++    $candidates += (Get-Location).Path
++
++    $workspaceRoot = (Resolve-Path -Path (Join-Path $PSScriptRoot '..')).Path
++    $candidates += $workspaceRoot
++
++    $children = Get-ChildItem -Path $workspaceRoot -Directory -ErrorAction SilentlyContinue
++    foreach ($child in $children) {
++      if (Test-Path (Join-Path $child.FullName '.git')) {
++        $candidates += $child.FullName
++      }
++    }
++  }
++
++  $validRepos = @()
++  foreach ($candidate in ($candidates | Select-Object -Unique)) {
++    $top = Get-GitTopLevel -Candidate $candidate
++    if (-not [string]::IsNullOrWhiteSpace($top)) {
++      $validRepos += (Resolve-Path -Path $top).Path
++    }
++  }
++
++  $validRepos = @($validRepos | Select-Object -Unique)
++
++  if ($validRepos.Count -eq 0) {
++    return $null
++  }
++
++  if (-not $ExplicitPath -and $validRepos.Count -gt 1) {
++    $joined = $validRepos -join ', '
++    Fail "Multiple Git repositories found: $joined. Use -RepositoryPath to select one."
++  }
++
++  return $validRepos[0]
++}
++
++function Get-DirtyState([string]$Repo) {
++  $status = & git -C $Repo status --porcelain
++  return -not [string]::IsNullOrWhiteSpace(($status -join "`n"))
++}
++
++function Test-BranchExists([string]$Repo, [string]$BranchName) {
++  & git -C $Repo show-ref --verify --quiet "refs/heads/$BranchName"
++  return $LASTEXITCODE -eq 0
++}
++
++function Ensure-CheckedOutBranch([string]$Repo, [string]$BranchName) {
++  if (Test-BranchExists -Repo $Repo -BranchName $BranchName) {
++    if ($DryRun) {
++      Write-Output "[dry-run] git -C $Repo checkout $BranchName"
++      return
++    }
++
++    & git -C $Repo checkout $BranchName | Out-Null
++    if ($LASTEXITCODE -ne 0) { Fail "Failed to checkout existing branch: $BranchName" }
++    Write-Output "Checked out branch: $BranchName"
++    return
++  }
++
++  if ($DryRun) {
++    Write-Output "[dry-run] git -C $Repo checkout -b $BranchName"
++    return
++  }
++
++  & git -C $Repo checkout -b $BranchName | Out-Null
++  if ($LASTEXITCODE -ne 0) { Fail "Failed to create branch: $BranchName" }
++  Write-Output "Created branch: $BranchName"
++}
++
++function Format-CommitMessage([string]$Pattern, [string]$MsgSlug, [string]$MsgPhase, [string]$MsgTag) {
++  $message = $Pattern.Replace('{slug}', $MsgSlug)
++  $message = $message.Replace('{phase}', $MsgPhase)
++  $message = $message.Replace('{tag}', $MsgTag)
++  return $message
++}
++
++function New-BmadCommit([string]$Repo, [string]$Message) {
++  $isDirty = Get-DirtyState -Repo $Repo
++  if (-not $isDirty) {
++    Write-Output 'No changes detected: commit skipped'
++    return
++  }
++
++  if ($DryRun) {
++    Write-Output "[dry-run] git -C $Repo add -A"
++    Write-Output "[dry-run] git -C $Repo commit -m `"$Message`""
++    return
++  }
++
++  & git -C $Repo add -A
++  if ($LASTEXITCODE -ne 0) { Fail 'git add failed' }
++
++  & git -C $Repo commit -m $Message | Out-Null
++  if ($LASTEXITCODE -ne 0) { Fail 'git commit failed' }
++
++  Write-Output "Created commit: $Message"
++}
++
++function Run-InitMode {
++  if (-not $Slug) { Fail 'init mode requires -Slug' }
++  if (-not (Test-ValidSlug $Slug)) { Fail 'Invalid slug format. Example: bmad-git-automation' }
++
++  $repo = Find-GitRepo -ExplicitPath $RepositoryPath
++  if (-not $repo) { Fail 'Could not find a Git repository. Provide -RepositoryPath.' }
++
++  $branchName = "$BranchPrefix/$Slug"
++
++  if ($CreateBaselineCommit) {
++    $baselineMessage = Format-CommitMessage -Pattern $CommitPattern -MsgSlug $Slug -MsgPhase 'init' -MsgTag 'baseline'
++    New-BmadCommit -Repo $repo -Message $baselineMessage
++  }
++
++  Ensure-CheckedOutBranch -Repo $repo -BranchName $branchName
++  Write-Output "repo=$repo"
++}
++
++function Run-CommitMode {
++  if (-not $Slug) { Fail 'commit mode requires -Slug' }
++  if (-not (Test-ValidSlug $Slug)) { Fail 'Invalid slug format. Example: bmad-git-automation' }
++  if (-not $Phase) { Fail 'commit mode requires -Phase' }
++  if (-not (Test-ValidPhase $Phase)) { Fail 'Invalid phase format. Example: step-03' }
++  if (-not (Test-ValidTag $Tag)) { Fail 'Invalid tag format. Example: auto or review-pass-1' }
++
++  $repo = Find-GitRepo -ExplicitPath $RepositoryPath
++  if (-not $repo) { Fail 'Could not find a Git repository. Provide -RepositoryPath.' }
++
++  $branchName = "$BranchPrefix/$Slug"
++  Ensure-CheckedOutBranch -Repo $repo -BranchName $branchName
++
++  $message = Format-CommitMessage -Pattern $CommitPattern -MsgSlug $Slug -MsgPhase $Phase -MsgTag $Tag
++  New-BmadCommit -Repo $repo -Message $message
++  Write-Output "repo=$repo"
++}
++
++function Run-SelfCheckMode {
++  $repo = Find-GitRepo -ExplicitPath $RepositoryPath
++  if (-not $repo) { Fail 'Could not find a Git repository. Provide -RepositoryPath.' }
++
++  $tempRepo = Join-Path ([System.IO.Path]::GetTempPath()) ("bmad-git-selfcheck-" + [Guid]::NewGuid().ToString('N'))
++  New-Item -ItemType Directory -Path $tempRepo | Out-Null
++  & git -C $tempRepo init | Out-Null
++  if ($LASTEXITCODE -ne 0) { Fail 'Failed to create temp repo for self-check' }
++  & git -C $tempRepo config user.name "bmad-self-check" | Out-Null
++  & git -C $tempRepo config user.email "bmad-self-check@example.invalid" | Out-Null
++  & git -C $tempRepo commit --allow-empty -m "seed" | Out-Null
++  & git -C $tempRepo checkout -b feat/test-branch | Out-Null
++
++  $checks = @(
++    @{ Name = 'slug-valid'; Pass = (Test-ValidSlug 'bmad-git-automation') },
++    @{ Name = 'slug-invalid'; Pass = (-not (Test-ValidSlug 'bad_slug')) },
++    @{ Name = 'phase-valid'; Pass = (Test-ValidPhase 'step-03') },
++    @{ Name = 'phase-invalid'; Pass = (-not (Test-ValidPhase 'step_03')) },
++    @{ Name = 'tag-valid'; Pass = (Test-ValidTag 'auto') },
++    @{ Name = 'tag-invalid'; Pass = (-not (Test-ValidTag 'bad tag')) },
++    @{ Name = 'repo-detected'; Pass = $true },
++    @{ Name = 'branch-duplicate-detected'; Pass = (Test-BranchExists -Repo $tempRepo -BranchName 'feat/test-branch') },
++    @{ Name = 'clean-repo-skip-path'; Pass = (-not (Get-DirtyState -Repo $tempRepo)) }
++  )
++
++  Remove-Item -LiteralPath $tempRepo -Recurse -Force
++
++  $failed = @($checks | Where-Object { -not $_.Pass })
++  foreach ($check in $checks) {
++    $state = if ($check.Pass) { 'PASS' } else { 'FAIL' }
++    Write-Output ("[{0}] {1}" -f $state, $check.Name)
++  }
++
++  if ($failed.Count -gt 0) {
++    Fail 'self-check failed'
++  }
++
++  Write-Output "self-check completed: repo=$repo"
++}
++
++$defaults = Get-BmadGitDefaults
++if (-not $BranchPrefix) {
++  $BranchPrefix = $defaults.BranchPrefix
++}
++if (-not $CommitPattern) {
++  $CommitPattern = $defaults.CommitPattern
++}
++
++if (-not $Mode) {
++  Fail 'Specify Mode: init | commit | self-check'
++}
++
++switch ($Mode) {
++  'init' { Run-InitMode }
++  'commit' { Run-CommitMode }
++  'self-check' { Run-SelfCheckMode }
++  default { Fail 'Unsupported mode' }
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\decision\\page.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\decision\\page.tsx"
+new file mode 100644
+index 0000000..89eb2f3
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\decision\\page.tsx"
+@@ -0,0 +1,10 @@
++import { DecisionCard } from "@/feature/decision/components/decision-card";
++
++export default function DecisionPage() {
++  return (
++    <main style={{ padding: "24px", display: "grid", gap: "12px" }}>
++      <h1>판단 카드</h1>
++      <DecisionCard />
++    </main>
++  );
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\entry-page.module.css" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\entry-page.module.css"
+new file mode 100644
+index 0000000..2324844
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\entry-page.module.css"
+@@ -0,0 +1,34 @@
++.page {
++  display: grid;
++  gap: 16px;
++  padding: 20px;
++  max-width: 980px;
++  margin: 0 auto;
++}
++
++.title {
++  font-size: 1.8rem;
++  color: #102331;
++}
++
++.subtitle {
++  color: #2b4253;
++  line-height: 1.5;
++}
++
++.quickLinks {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 10px;
++}
++
++.quickLink {
++  border: 1px solid #9fb1bd;
++  border-radius: 10px;
++  min-height: 44px;
++  display: inline-flex;
++  align-items: center;
++  padding: 10px 12px;
++  color: #163247;
++}
++
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\intent\\page.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\intent\\page.tsx"
+new file mode 100644
+index 0000000..eb2709a
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\intent\\page.tsx"
+@@ -0,0 +1,10 @@
++import { IntentForm } from "@/feature/intent/components/intent-form";
++
++export default function IntentPage() {
++  return (
++    <main style={{ padding: "24px", display: "grid", gap: "12px" }}>
++      <h1>의향 입력</h1>
++      <IntentForm />
++    </main>
++  );
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\layout.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\layout.tsx"
+new file mode 100644
+index 0000000..0a80d0d
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\layout.tsx"
+@@ -0,0 +1,5 @@
++import type { ReactNode } from "react";
++
++export default function AppGroupLayout({ children }: { children: ReactNode }) {
++  return <>{children}</>;
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\page.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\page.tsx"
+new file mode 100644
+index 0000000..548aaa0
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\(app)\\page.tsx"
+@@ -0,0 +1,23 @@
++import Link from "next/link";
++import { StatusDiagnosticForm } from "@/feature/intent/components/status-diagnostic-form";
++import styles from "./entry-page.module.css";
++
++export default function EntryPage() {
++  return (
++    <main className={styles.page}>
++      <h1 className={styles.title}>목적 불명확 진입 가이드</h1>
++      <p className={styles.subtitle}>
++        현재 상태를 먼저 진단하고, 다음 한 단계 행동을 바로 제안합니다. 입력은 언제든 되돌릴 수 있습니다.
++      </p>
++      <StatusDiagnosticForm />
++      <nav className={styles.quickLinks} aria-label="추가 경로">
++        <Link className={styles.quickLink} href="/intent">
++          의향 입력 경로
++        </Link>
++        <Link className={styles.quickLink} href="/decision">
++          판단 카드 경로
++        </Link>
++      </nav>
++    </main>
++  );
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\api\\intents\\route.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\api\\intents\\route.ts"
+new file mode 100644
+index 0000000..165bb04
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\app\\api\\intents\\route.ts"
+@@ -0,0 +1,191 @@
++import { NextResponse } from "next/server";
++import type { ApiError, ApiSuccess } from "@/shared/contracts/api-response";
++import {
++  EVENT_ALIAS_TO_CANONICAL,
++  GOAL_CLARITY_VALUES,
++  LIQUIDITY_NEED_VALUES,
++  PRODUCT_CLARITY_VALUES,
++  TIME_PRESSURE_VALUES,
++  type GoalConfidence,
++  type IntentDiagnosticInputDto,
++  type IntentDiagnosticRequestDto,
++  type IntentDiagnosticResultDto,
++  type IntentMaturity,
++} from "@/shared/contracts/intent-diagnostic";
++
++type IntentApiData = {
++  diagnostic: IntentDiagnosticResultDto;
++};
++
++const idemStore = new Map<string, ApiSuccess<IntentApiData>>();
++
++function isEnumValue<T extends readonly string[]>(value: unknown, values: T): value is T[number] {
++  return typeof value === "string" && values.includes(value);
++}
++
++function validateInput(input: unknown): input is IntentDiagnosticInputDto {
++  if (typeof input !== "object" || input === null) {
++    return false;
++  }
++
++  const candidate = input as Partial<IntentDiagnosticInputDto>;
++  return (
++    isEnumValue(candidate.goalClarity, GOAL_CLARITY_VALUES) &&
++    isEnumValue(candidate.productClarity, PRODUCT_CLARITY_VALUES) &&
++    isEnumValue(candidate.timePressure, TIME_PRESSURE_VALUES) &&
++    isEnumValue(candidate.liquidityNeed, LIQUIDITY_NEED_VALUES)
++  );
++}
++
++function buildError(
++  requestId: string,
++  code: string,
++  message: string,
++  details?: Record<string, unknown>,
++): ApiError {
++  return {
++    error: {
++      code,
++      message,
++      details,
++      requestId,
++    },
++  };
++}
++
++function toNumeric(value: "low" | "medium" | "high"): number {
++  if (value === "low") return 1;
++  if (value === "high") return 3;
++  return 2;
++}
++
++function deriveDiagnostic(input: IntentDiagnosticInputDto): IntentDiagnosticResultDto {
++  const goalScore = toNumeric(input.goalClarity);
++  const productScore = toNumeric(input.productClarity);
++  const timeScore = toNumeric(input.timePressure);
++  const liquidityScore = toNumeric(input.liquidityNeed);
++
++  const clarityAverage = (goalScore + productScore) / 2;
++  const pressureAverage = (timeScore + liquidityScore) / 2;
++
++  let intentMaturity: IntentMaturity = "explore";
++  let goalConfidence: GoalConfidence = "low";
++  let nextStep = "탐색 시작: 관심 상품 2개를 비교해 차이를 기록하세요.";
++  let reversibilityHint = "가벼운 비교부터 시작해도 되며, 언제든 기준을 바꿀 수 있습니다.";
++
++  if (clarityAverage >= 2.5 && pressureAverage >= 2.5) {
++    intentMaturity = "prepare";
++    goalConfidence = "high";
++    nextStep = "판단 준비: 우선순위 기준 3가지를 고정하고 즉시 판단 카드로 이동하세요.";
++    reversibilityHint = "기준 확정 후에도 다음 세션에서 기준 가중치를 조정할 수 있습니다.";
++  } else if (clarityAverage >= 1.75) {
++    intentMaturity = "refine";
++    goalConfidence = "medium";
++    nextStep = "의향 보완: 목표 기간과 허용 손실 범위를 먼저 채우세요.";
++    reversibilityHint = "입력한 의향은 언제든 수정 가능하며 결정은 보류할 수 있습니다.";
++  }
++
++  return {
++    intent_maturity: intentMaturity,
++    goal_confidence: goalConfidence,
++    next_step: nextStep,
++    reversibility_hint: reversibilityHint,
++    occurredAt: new Date().toISOString(),
++  };
++}
++
++export async function POST(request: Request) {
++  const requestId = crypto.randomUUID();
++  const traceId = request.headers.get("x-trace-id") ?? requestId;
++  const idempotencyKey = request.headers.get("x-idempotency-key");
++
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_JSON", "JSON 본문을 파싱할 수 없습니다.", {
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (typeof body !== "object" || body === null) {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_BODY", "요청 본문은 객체여야 합니다.", {
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  const payload = body as Partial<IntentDiagnosticRequestDto>;
++  if (!validateInput(payload.input)) {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_INPUT", "필수 필드가 누락되었거나 범위를 벗어났습니다.", {
++        expected: {
++          goalClarity: GOAL_CLARITY_VALUES,
++          productClarity: PRODUCT_CLARITY_VALUES,
++          timePressure: TIME_PRESSURE_VALUES,
++          liquidityNeed: LIQUIDITY_NEED_VALUES,
++        },
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (payload.uiEventAlias !== "state_assessed") {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_EVENT_ALIAS", "지원하지 않는 UI 이벤트 별칭입니다.", {
++        expected: "state_assessed",
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (idempotencyKey && idemStore.has(idempotencyKey)) {
++    const replay = idemStore.get(idempotencyKey);
++    return NextResponse.json(
++      {
++        ...replay,
++        meta: {
++          ...replay?.meta,
++          requestId,
++          traceId,
++          idempotentReplay: true,
++          event: {
++            alias: payload.uiEventAlias,
++            canonical: EVENT_ALIAS_TO_CANONICAL[payload.uiEventAlias],
++          },
++        },
++      },
++      { status: 200 },
++    );
++  }
++
++  const diagnostic = deriveDiagnostic(payload.input);
++  const response: ApiSuccess<IntentApiData> = {
++    data: {
++      diagnostic,
++    },
++    meta: {
++      requestId,
++      traceId,
++      idempotentReplay: false,
++      event: {
++        alias: payload.uiEventAlias,
++        canonical: EVENT_ALIAS_TO_CANONICAL[payload.uiEventAlias],
++      },
++    },
++  };
++
++  if (idempotencyKey) {
++    idemStore.set(idempotencyKey, response);
++  }
++
++  return NextResponse.json(response, { status: 200 });
++}
++
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\domain\\README.md" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\domain\\README.md"
+new file mode 100644
+index 0000000..3397b3c
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\domain\\README.md"
+@@ -0,0 +1,3 @@
++# Domain Layer
++
++도메인 규칙, 엔티티, 유스케이스 인터페이스를 둡니다.
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\README.md" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\README.md"
+new file mode 100644
+index 0000000..1fb895d
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\README.md"
+@@ -0,0 +1,4 @@
++# Feature Layer
++
++UI와 사용자 여정 단위 기능을 배치합니다.
++내부 흐름은 contracts -> adapters -> handlers -> UI 순서를 기준으로 확장합니다.
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\decision\\components\\decision-card.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\decision\\components\\decision-card.tsx"
+new file mode 100644
+index 0000000..fb24b55
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\decision\\components\\decision-card.tsx"
+@@ -0,0 +1,3 @@
++export function DecisionCard() {
++  return <section aria-label="decision-card-skeleton" />;
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\intent-form.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\intent-form.tsx"
+new file mode 100644
+index 0000000..0222b23
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\intent-form.tsx"
+@@ -0,0 +1,14 @@
++export function IntentForm() {
++  return (
++    <form style={{ display: "grid", gap: "8px", maxWidth: "420px" }}>
++      <label htmlFor="intent-text">현재 투자 의향</label>
++      <input
++        id="intent-text"
++        name="intentText"
++        type="text"
++        placeholder="예: 기술주 중심 단기 매수"
++      />
++      <button type="button">저장</button>
++    </form>
++  );
++}
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\status-diagnostic-form.module.css" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\status-diagnostic-form.module.css"
+new file mode 100644
+index 0000000..3ee677f
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\status-diagnostic-form.module.css"
+@@ -0,0 +1,123 @@
++.container {
++  display: grid;
++  gap: 20px;
++  max-width: 900px;
++}
++
++.summaryGrid {
++  display: grid;
++  grid-template-columns: repeat(3, minmax(0, 1fr));
++  gap: 12px;
++}
++
++.summaryCard {
++  border: 1px solid #c7d2da;
++  border-radius: 12px;
++  padding: 12px;
++  background: #f6fafc;
++  display: grid;
++  gap: 6px;
++}
++
++.summaryTitle {
++  font-size: 0.85rem;
++  color: #1f2a37;
++}
++
++.summaryValue {
++  font-weight: 700;
++  color: #0f1720;
++}
++
++.form {
++  display: grid;
++  gap: 16px;
++  border: 1px solid #d9e2e8;
++  border-radius: 12px;
++  padding: 16px;
++  background: #ffffff;
++}
++
++.fieldset {
++  border: 0;
++  display: grid;
++  gap: 8px;
++}
++
++.legend {
++  font-weight: 700;
++  margin-bottom: 4px;
++}
++
++.optionRow {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++}
++
++.optionLabel {
++  border: 1px solid #9db0bd;
++  border-radius: 10px;
++  padding: 10px 12px;
++  min-height: 44px;
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  cursor: pointer;
++  color: #0f1720;
++}
++
++.optionLabel:focus-within {
++  outline: 2px solid #005fcc;
++  outline-offset: 1px;
++}
++
++.optionText {
++  font-size: 0.95rem;
++}
++
++.hint {
++  font-size: 0.85rem;
++  color: #465362;
++}
++
++.submitButton {
++  min-height: 44px;
++  border: 0;
++  border-radius: 10px;
++  background: #0b4f6c;
++  color: #ffffff;
++  font-weight: 700;
++  padding: 10px 16px;
++  cursor: pointer;
++}
++
++.submitButton:disabled {
++  background: #8ea3b0;
++  cursor: wait;
++}
++
++.statusBox {
++  border: 1px solid #c6d5df;
++  border-radius: 12px;
++  padding: 12px;
++  background: #f8fbfd;
++  display: grid;
++  gap: 6px;
++}
++
++.statusText {
++  font-weight: 700;
++}
++
++.eventText {
++  font-size: 0.9rem;
++  color: #253646;
++}
++
++@media (max-width: 768px) {
++  .summaryGrid {
++    grid-template-columns: 1fr;
++  }
++}
++
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\status-diagnostic-form.tsx" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\status-diagnostic-form.tsx"
+new file mode 100644
+index 0000000..7f88331
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\feature\\intent\\components\\status-diagnostic-form.tsx"
+@@ -0,0 +1,206 @@
++"use client";
++
++import { useMemo, useState } from "react";
++import styles from "./status-diagnostic-form.module.css";
++import type {
++  GoalClarity,
++  LiquidityNeed,
++  ProductClarity,
++  TimePressure,
++} from "@/shared/contracts/intent-diagnostic";
++
++type FormState = {
++  goalClarity: GoalClarity;
++  productClarity: ProductClarity;
++  timePressure: TimePressure;
++  liquidityNeed: LiquidityNeed;
++};
++
++type ApiPayload = {
++  data: {
++    diagnostic: {
++      intent_maturity: string;
++      goal_confidence: string;
++      next_step: string;
++      reversibility_hint: string;
++      occurredAt: string;
++    };
++  };
++  meta: {
++    event: {
++      alias: string;
++      canonical: string;
++    };
++  };
++};
++
++const DEFAULT_FORM: FormState = {
++  goalClarity: "medium",
++  productClarity: "medium",
++  timePressure: "medium",
++  liquidityNeed: "medium",
++};
++
++const OPTIONS: { value: "low" | "medium" | "high"; label: string }[] = [
++  { value: "low", label: "낮음" },
++  { value: "medium", label: "보통" },
++  { value: "high", label: "높음" },
++];
++
++export function StatusDiagnosticForm() {
++  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
++  const [isSubmitting, setIsSubmitting] = useState(false);
++  const [statusText, setStatusText] = useState("아직 진단 전");
++  const [nextStep, setNextStep] = useState("질문에 답하면 즉시 제안됩니다.");
++  const [reversibilityHint, setReversibilityHint] =
++    useState("언제든 입력값을 바꿔도 됩니다.");
++  const [eventAlias, setEventAlias] = useState("state_assessed");
++  const [eventCanonical, setEventCanonical] = useState("view_landing");
++
++  const summary = useMemo(
++    () => [
++      { label: "현재 상태", value: statusText },
++      { label: "다음 행동", value: nextStep },
++      { label: "가역성", value: reversibilityHint },
++    ],
++    [statusText, nextStep, reversibilityHint],
++  );
++
++  function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
++    setForm((prev) => ({ ...prev, [field]: value }));
++  }
++
++  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    setIsSubmitting(true);
++    setStatusText("저장 중");
++
++    const response = await fetch("/api/intents", {
++      method: "POST",
++      headers: {
++        "content-type": "application/json",
++        "x-idempotency-key": "landing-diagnostic-v1",
++      },
++      body: JSON.stringify({
++        input: form,
++        uiEventAlias: "state_assessed",
++      }),
++    });
++
++    if (!response.ok) {
++      setStatusText("저장 실패");
++      setNextStep("다음 행동: 입력값을 확인한 후 다시 시도하세요.");
++      setReversibilityHint("오류가 나도 현재 입력은 언제든 수정 가능합니다.");
++      setIsSubmitting(false);
++      return;
++    }
++
++    const payload = (await response.json()) as ApiPayload;
++    setStatusText("저장 완료");
++    setNextStep(`다음 행동: ${payload.data.diagnostic.next_step}`);
++    setReversibilityHint(payload.data.diagnostic.reversibility_hint);
++    setEventAlias(payload.meta.event.alias);
++    setEventCanonical(payload.meta.event.canonical);
++    setIsSubmitting(false);
++  }
++
++  return (
++    <section className={styles.container} aria-label="상태 진단 섹션">
++      <div className={styles.summaryGrid}>
++        {summary.map((item) => (
++          <article
++            key={item.label}
++            className={styles.summaryCard}
++            aria-label={`${item.label} 요약`}
++          >
++            <p className={styles.summaryTitle}>[i] {item.label}</p>
++            <p className={styles.summaryValue}>{item.value}</p>
++          </article>
++        ))}
++      </div>
++
++      <form className={styles.form} onSubmit={handleSubmit}>
++        <h2>현재 상태 진단</h2>
++
++        <QuestionField
++          legend="목표 명확도"
++          fieldName="goalClarity"
++          selected={form.goalClarity}
++          onSelect={(value) => updateField("goalClarity", value)}
++        />
++        <QuestionField
++          legend="상품 이해도"
++          fieldName="productClarity"
++          selected={form.productClarity}
++          onSelect={(value) => updateField("productClarity", value)}
++        />
++        <QuestionField
++          legend="시간 압박"
++          fieldName="timePressure"
++          selected={form.timePressure}
++          onSelect={(value) => updateField("timePressure", value)}
++        />
++        <QuestionField
++          legend="유동성 필요"
++          fieldName="liquidityNeed"
++          selected={form.liquidityNeed}
++          onSelect={(value) => updateField("liquidityNeed", value)}
++        />
++
++        <p className={styles.hint}>[!] 색상 대신 텍스트와 상태 라벨을 함께 제공합니다.</p>
++
++        <button
++          className={styles.submitButton}
++          type="submit"
++          disabled={isSubmitting}
++          aria-label="진단 저장 및 다음 행동 보기"
++        >
++          {isSubmitting ? "저장 중..." : "진단 저장 및 다음 행동 보기"}
++        </button>
++      </form>
++
++      <div className={styles.statusBox} role="status" aria-live="polite">
++        <p className={styles.statusText}>{statusText}</p>
++        <p>{nextStep}</p>
++        <p>{reversibilityHint}</p>
++        <p className={styles.eventText}>UI alias: {eventAlias}</p>
++        <p className={styles.eventText}>저장 canonical: {eventCanonical}</p>
++      </div>
++    </section>
++  );
++}
++
++type QuestionFieldProps = {
++  legend: string;
++  fieldName: keyof FormState;
++  selected: "low" | "medium" | "high";
++  onSelect: (value: "low" | "medium" | "high") => void;
++};
++
++function QuestionField({ legend, fieldName, selected, onSelect }: QuestionFieldProps) {
++  return (
++    <fieldset className={styles.fieldset}>
++      <legend className={styles.legend}>{legend}</legend>
++      <div className={styles.optionRow}>
++        {OPTIONS.map((option) => {
++          const inputId = `${fieldName}-${option.value}`;
++          return (
++            <label key={inputId} htmlFor={inputId} className={styles.optionLabel}>
++              <input
++                id={inputId}
++                type="radio"
++                name={fieldName}
++                value={option.value}
++                checked={selected === option.value}
++                onChange={() => onSelect(option.value)}
++                aria-label={`${legend} ${option.label}`}
++              />
++              <span className={styles.optionText}>{option.label}</span>
++            </label>
++          );
++        })}
++      </div>
++    </fieldset>
++  );
++}
++
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\infra\\README.md" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\infra\\README.md"
+new file mode 100644
+index 0000000..f6ae0d8
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\infra\\README.md"
+@@ -0,0 +1,4 @@
++# Infra Layer
++
++외부 포맷과 내부 포맷의 변환, I/O 어댑터 구현을 둡니다.
++케이싱 변환은 `infra/mapper`에서만 처리합니다.
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\infra\\mapper\\case-mapper.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\infra\\mapper\\case-mapper.ts"
+new file mode 100644
+index 0000000..7209b6f
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\infra\\mapper\\case-mapper.ts"
+@@ -0,0 +1,18 @@
++export type AnyRecord = Record<string, unknown>;
++
++export function snakeToCamelCase(input: string): string {
++  return input.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
++}
++
++export function mapTopLevelKeysSnakeToCamel<T extends AnyRecord>(source: T): AnyRecord {
++  return Object.entries(source).reduce<AnyRecord>((acc, [key, value]) => {
++    const mappedKey = snakeToCamelCase(key);
++    if (Object.prototype.hasOwnProperty.call(acc, mappedKey)) {
++      throw new Error(`Key collision while mapping snake_case to camelCase: ${key} -> ${mappedKey}`);
++    }
++    acc[mappedKey] = value;
++    return acc;
++  }, {});
++}
++
++export const mapKeysSnakeToCamel = mapTopLevelKeysSnakeToCamel;
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\README.md" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\README.md"
+new file mode 100644
+index 0000000..db9b8c8
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\README.md"
+@@ -0,0 +1,3 @@
++# Shared Layer
++
++공통 타입, 계약, 환경 검증 로직을 둡니다.
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\config\\env.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\config\\env.ts"
+new file mode 100644
+index 0000000..8a73929
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\config\\env.ts"
+@@ -0,0 +1,14 @@
++function getEnvValue(key: "NEXT_PUBLIC_APP_NAME", fallback?: string): string {
++  const value = process.env[key];
++  if (!value) {
++    if (fallback) {
++      return fallback;
++    }
++    throw new Error(`Missing required environment variable: ${key}`);
++  }
++  return value;
++}
++
++export const env = {
++  NEXT_PUBLIC_APP_NAME: getEnvValue("NEXT_PUBLIC_APP_NAME", "PreProduct"),
++};
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\api-response.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\api-response.ts"
+new file mode 100644
+index 0000000..e83bc3a
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\api-response.ts"
+@@ -0,0 +1,15 @@
++export type ApiSuccess<T> = {
++  data: T;
++  meta: Record<string, unknown>;
++};
++
++export type ApiError = {
++  error: {
++    code: string;
++    message: string;
++    details?: Record<string, unknown>;
++    requestId: string;
++  };
++};
++
++export type ApiResponse<T> = ApiSuccess<T> | ApiError;
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\event-envelope.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\event-envelope.ts"
+new file mode 100644
+index 0000000..42b298b
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\event-envelope.ts"
+@@ -0,0 +1,6 @@
++export type EventEnvelope = {
++  eventId: string;
++  occurredAt: string;
++  traceId: string;
++  schemaVersion: string;
++};
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\intent-diagnostic.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\intent-diagnostic.ts"
+new file mode 100644
+index 0000000..659d091
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\src\\shared\\contracts\\intent-diagnostic.ts"
+@@ -0,0 +1,43 @@
++export const GOAL_CLARITY_VALUES = ["low", "medium", "high"] as const;
++export const PRODUCT_CLARITY_VALUES = ["low", "medium", "high"] as const;
++export const TIME_PRESSURE_VALUES = ["low", "medium", "high"] as const;
++export const LIQUIDITY_NEED_VALUES = ["low", "medium", "high"] as const;
++
++export type GoalClarity = (typeof GOAL_CLARITY_VALUES)[number];
++export type ProductClarity = (typeof PRODUCT_CLARITY_VALUES)[number];
++export type TimePressure = (typeof TIME_PRESSURE_VALUES)[number];
++export type LiquidityNeed = (typeof LIQUIDITY_NEED_VALUES)[number];
++
++export type IntentMaturity = "explore" | "refine" | "prepare";
++export type GoalConfidence = "low" | "medium" | "high";
++
++export type IntentDiagnosticInputDto = {
++  goalClarity: GoalClarity;
++  productClarity: ProductClarity;
++  timePressure: TimePressure;
++  liquidityNeed: LiquidityNeed;
++};
++
++export type IntentDiagnosticResultDto = {
++  intent_maturity: IntentMaturity;
++  goal_confidence: GoalConfidence;
++  next_step: string;
++  reversibility_hint: string;
++  occurredAt: string;
++};
++
++export type IntentDiagnosticEventAlias = "state_assessed";
++export type IntentDiagnosticEventCanonical = "view_landing";
++
++export type IntentDiagnosticRequestDto = {
++  input: IntentDiagnosticInputDto;
++  uiEventAlias: IntentDiagnosticEventAlias;
++};
++
++export const EVENT_ALIAS_TO_CANONICAL: Record<
++  IntentDiagnosticEventAlias,
++  IntentDiagnosticEventCanonical
++> = {
++  state_assessed: "view_landing",
++};
++
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\test-results\\.last-run.json" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\test-results\\.last-run.json"
+new file mode 100644
+index 0000000..cbcc1fb
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\test-results\\.last-run.json"
+@@ -0,0 +1,4 @@
++{
++  "status": "passed",
++  "failedTests": []
++}
+\ No newline at end of file
+diff --git "a/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\tests\\e2e\\core-user-flow.spec.ts" "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\tests\\e2e\\core-user-flow.spec.ts"
+new file mode 100644
+index 0000000..38cff0e
+--- /dev/null
++++ "b/C:\\Users\\atima\\Projects\\PreProduct\\preproduct\\tests\\e2e\\core-user-flow.spec.ts"
+@@ -0,0 +1,63 @@
++import { expect, test } from "@playwright/test";
++
++test.describe("핵심 사용자 여정", () => {
++  test("진입 페이지에서 상태 진단 후 다음 행동을 확인한다", async ({ page }) => {
++    await page.goto("/");
++
++    await expect(page.getByRole("heading", { name: "현재 상태 진단" })).toBeVisible();
++    await expect(page.getByLabel("현재 상태 요약")).toBeVisible();
++    await expect(page.getByLabel("다음 행동 요약")).toBeVisible();
++    await expect(page.getByLabel("가역성 요약")).toBeVisible();
++
++    await page.getByLabel("목표 명확도 높음").check();
++    await page.getByLabel("상품 이해도 보통").check();
++    await page.getByLabel("시간 압박 높음").check();
++    await page.getByLabel("유동성 필요 낮음").check();
++
++    await page.getByRole("button", { name: "진단 저장 및 다음 행동 보기" }).click();
++
++    const statusRegion = page.getByRole("status");
++    await expect(statusRegion).toContainText("저장 완료");
++    await expect(statusRegion).toContainText("다음 행동:", { timeout: 1000 });
++    await expect(statusRegion).toContainText("UI alias: state_assessed");
++    await expect(statusRegion).toContainText("저장 canonical: view_landing");
++  });
++
++  test("키보드만으로 진단 입력/제출/결과 확인이 가능하다", async ({ page }) => {
++    await page.goto("/");
++
++    await page.getByLabel("목표 명확도 높음").focus();
++    await page.keyboard.press("Space");
++    await page.getByLabel("상품 이해도 보통").focus();
++    await page.keyboard.press("Space");
++    await page.getByLabel("시간 압박 높음").focus();
++    await page.keyboard.press("Space");
++    await page.getByLabel("유동성 필요 낮음").focus();
++    await page.keyboard.press("Space");
++    await page.getByRole("button", { name: "진단 저장 및 다음 행동 보기" }).focus();
++    await page.keyboard.press("Enter");
++
++    const statusRegion = page.getByRole("status");
++    await expect(statusRegion).toContainText("저장 완료");
++    await expect(statusRegion).toContainText("다음 행동:");
++  });
++
++  test("모바일 뷰포트에서 진단 요약 블록이 초기 화면에 노출된다", async ({ page }) => {
++    await page.goto("/");
++
++    await expect(page.getByLabel("현재 상태 요약")).toBeVisible();
++    await expect(page.getByLabel("다음 행동 요약")).toBeVisible();
++    await expect(page.getByLabel("가역성 요약")).toBeVisible();
++  });
++
++  test("회귀: intent/decision 경로가 계속 동작한다", async ({ page }) => {
++    await page.goto("/intent");
++    await expect(page).toHaveURL(/\/intent$/);
++    await expect(page.getByRole("heading", { name: "의향 입력" })).toBeVisible();
++
++    await page.goto("/decision");
++    await expect(page).toHaveURL(/\/decision$/);
++    await expect(page.getByRole("heading", { name: "판단 카드" })).toBeVisible();
++    await expect(page.getByLabel("decision-card-skeleton")).toBeAttached();
++  });
++});

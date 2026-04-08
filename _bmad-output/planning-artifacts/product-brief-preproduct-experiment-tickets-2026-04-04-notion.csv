@@ -1,0 +1,20 @@
+Name,Status,Priority,Type,Sprint,Tags,Description
+[Epic A] Instrumentation Foundation,Backlog,P1,Epic,,preproduct;experiment;analytics,PreProduct MLP 실험을 위한 이벤트 계측 기반 구축
+TKT-A1 이벤트 공통 스키마 적용,Todo,P2,Task,Sprint 1,preproduct;experiment;tracking,모든 이벤트 공통 필드(event_time user_id session_id category_id app_version channel) 표준 적용 및 샘플 로그 100건 검증
+TKT-A2 핵심 이벤트 11종 트래킹 구현,Todo,P1,Task,Sprint 1,preproduct;experiment;tracking,핵심 이벤트 11종 구현 및 QA 확인
+TKT-A3 이벤트 중복 방지(dedupe key) 적용,Todo,P3,Task,Sprint 1,preproduct;experiment;quality,중복 발송률 1% 미만 달성 및 충돌 테스트 통과
+[Epic B] KPI Pipeline and Dashboard,Backlog,P1,Epic,,preproduct;experiment;dashboard,핵심 지표 계산 파이프라인과 4개 운영 대시보드 구축
+TKT-B1 KPI 계산 쿼리 작성,Todo,P1,Task,Sprint 1,preproduct;experiment;kpi,등록률 활용률 재전환율 만족도 시간절감 신고율 실패율 주간 계산 쿼리 구현
+TKT-B2 Executive Funnel Guardrail Cohort 대시보드 구성,Backlog,P2,Task,Sprint 2,preproduct;experiment;dashboard,4개 패널 구성 및 주간 자동 갱신 목표선 반영
+TKT-B3 표본충족 경고 로직 구현,Backlog,P3,Task,Sprint 2,preproduct;experiment;guardrail,카테고리별 주간 n<100 경고 배지 및 리포트 경고 자동 포함
+[Epic C] Weekly Operating Cadence,Backlog,P2,Epic,,preproduct;experiment;ops,Go Hold Stop 주간 판정 체계 자동화
+TKT-C1 주간 판정 리포트 템플릿 자동 생성,Backlog,P3,Task,Sprint 2,preproduct;experiment;ops,핵심 지표 달성 수 가드레일 충족 여부 판정 결과 자동 리포트 생성
+TKT-C2 판정 규칙 엔진 구현,Backlog,P2,Task,Sprint 2,preproduct;experiment;decisioning,Go Hold Stop 규칙 엔진 구현 및 과거 데이터 리플레이 검증
+[Epic D] Experiment Backlog Execution,Backlog,P2,Epic,,preproduct;experiment;abtest,핵심 가설 검증 실험 3종 실행
+TKT-D1 판단 카드 문구 A/B 테스트,Backlog,P3,Task,Sprint 2,preproduct;experiment;abtest,설명형 문구 강화로 판단 활용률 +5%p 검증
+TKT-D2 보류 대안 추천 실험,Backlog,P3,Task,Sprint 2,preproduct;experiment;abtest,보류 사유 맞춤 대안 제공으로 14일 재전환율 +4%p 검증
+TKT-D3 입력 마찰 감소 실험,Backlog,P3,Task,Sprint 2,preproduct;experiment;abtest,입력 단계 축소 자동완성으로 등록률 +6%p 검증
+[Epic E] Data Quality and Governance,Backlog,P2,Epic,,preproduct;experiment;data-quality,측정 신뢰성 운영 거버넌스 확보
+TKT-E1 이벤트 QA 체크리스트 운영,Backlog,P2,Task,Sprint 2,preproduct;experiment;qa,릴리즈마다 이벤트 QA 수행 및 실패 항목 배포 차단
+TKT-E2 타임존 표준화,Backlog,P3,Task,Sprint 2,preproduct;experiment;data-quality,저장 UTC 대시보드 로컬 변환 및 경계 오류 0건 목표
+TKT-E3 저품질 입력 신고 프로세스 정의,Backlog,P3,Task,Sprint 2,preproduct;experiment;trust-safety,신고 접수 분류 조치 SLA 문서화 및 운영자 콘솔 최소 기능 정의

@@ -1,0 +1,594 @@
+diff --git a/README.md b/README.md
+index 829fe3e..cf45b7e 100644
+--- a/README.md
++++ b/README.md
+@@ -27,7 +27,7 @@ cp .env.example .env.local
+ `INTENT_SHARED_STATE_PATH` controls the shared idempotency/dedupe storage used by `/api/intents` and `/api/intents/records`.
+ For multi-instance deployment, set this to a shared persistent volume path.
+ 
+-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
++You can start editing the page by modifying `src/app/(app)/page.tsx`. The page auto-updates as you edit the file.
+ 
+ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+ 
+@@ -89,25 +89,25 @@ Required checks on `main` must match job names exactly:
+ Install browser dependency first (from repository root):
+ 
+ ```bash
+-pnpm --dir preproduct exec playwright install --with-deps chromium
++pnpm exec playwright install --with-deps chromium
+ ```
+ 
+ Run the same gate sequence (from repository root):
+ 
+ ```bash
+-pnpm --dir preproduct lint
+-pnpm --dir preproduct typecheck
+-pnpm --dir preproduct test:unit
+-pnpm --dir preproduct test:contracts
+-pnpm --dir preproduct test:e2e:ci
+-pnpm --dir preproduct ci:perf-budget
++pnpm lint
++pnpm typecheck
++pnpm test:unit
++pnpm test:contracts
++pnpm test:e2e:ci
++pnpm ci:perf-budget
+ ```
+ 
+ Minimum rerun order after a failure:
+ 1. Fix failing gate.
+ 2. Rerun the failing gate command.
+-3. Rerun `pnpm --dir preproduct test:e2e:ci`.
+-4. Rerun `pnpm --dir preproduct ci:perf-budget`.
++3. Rerun `pnpm test:e2e:ci`.
++4. Rerun `pnpm ci:perf-budget`.
+ 
+ Failure triage paths:
+ - Playwright JSON report: `test-results/playwright-report.json`
+diff --git a/scripts/bmad-auto.ps1 b/scripts/bmad-auto.ps1
+index e89c755..e5c9806 100644
+--- a/scripts/bmad-auto.ps1
++++ b/scripts/bmad-auto.ps1
+@@ -84,6 +84,10 @@ function Resolve-StepFromSpec([string]$SlugValue) {
+     $status = $Matches[1].Trim().ToLowerInvariant()
+   }
+ 
++  if ($status -match '^([a-z0-9-]+)') {
++    $status = $Matches[1]
++  }
++
+   if (-not $status) {
+     Fail "Unsupported empty status in: $specPath"
+   }
+diff --git a/scripts/perf-budget-check.mjs b/scripts/perf-budget-check.mjs
+index 7e087cc..32c1652 100644
+--- a/scripts/perf-budget-check.mjs
++++ b/scripts/perf-budget-check.mjs
+@@ -1,5 +1,6 @@
+ import fs from "node:fs";
+ import path from "node:path";
++import { pathToFileURL } from "node:url";
+ 
+ function readReport(filePath) {
+   const resolved = path.resolve(filePath);
+@@ -137,6 +138,6 @@ function main() {
+   }
+ }
+ 
+-if (import.meta.url === `file://${process.argv[1]}`) {
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+   main();
+ }
+diff --git a/scripts/run-e2e-ci.mjs b/scripts/run-e2e-ci.mjs
+index 3c9874f..33aa17e 100644
+--- a/scripts/run-e2e-ci.mjs
++++ b/scripts/run-e2e-ci.mjs
+@@ -18,3 +18,8 @@ const child = spawn(
+ child.on("exit", (code) => {
+   process.exit(code ?? 1);
+ });
++
++child.on("error", (error) => {
++  console.error("[run-e2e-ci] failed to start Playwright:", error);
++  process.exit(1);
++});
+diff --git a/src/app/api/intents/records/route.ts b/src/app/api/intents/records/route.ts
+index 1319d93..aa2e673 100644
+--- a/src/app/api/intents/records/route.ts
++++ b/src/app/api/intents/records/route.ts
+@@ -12,6 +12,7 @@ import {
+   rememberIntentRecordReplay,
+   upsertIntentRecord,
+ } from "@/domain/intent/intent-record-service";
++import { runWithIdempotencyKeyLock } from "@/domain/intent/idempotency-key-lock";
+ import { recordIntentEvent } from "@/domain/intent/intent-event-log";
+ 
+ type IntentRecordApiData = IntentRecordResponseDto;
+@@ -88,106 +89,113 @@ export async function POST(request: Request) {
+     );
+   }
+ 
+-  if (idempotencyKey) {
+-    const replay = getIntentRecordReplay(idempotencyKey, requestFingerprint);
+-    if (replay.kind === "mismatch") {
+-      return NextResponse.json(
+-        buildError(
+-          requestId,
+-          "IDEMPOTENCY_KEY_REUSED",
+-          "동일 idempotency key로 서로 다른 요청은 허용되지 않습니다.",
+-          { traceId },
+-        ),
+-        { status: 409 },
+-      );
+-    }
+-    if (replay.kind === "match") {
+-      return NextResponse.json(
+-        {
+-          data: replay.replay.response,
+-          meta: {
++  const execute = async () => {
++    if (idempotencyKey) {
++      const replay = getIntentRecordReplay(idempotencyKey, requestFingerprint);
++      if (replay.kind === "mismatch") {
++        return NextResponse.json(
++          buildError(
+             requestId,
+-            traceId,
+-            idempotentReplay: true,
+-            event: {
+-              ...replay.replay.replayMeta.event,
++            "IDEMPOTENCY_KEY_REUSED",
++            "동일 idempotency key로 서로 다른 요청은 허용되지 않습니다.",
++            { traceId },
++          ),
++          { status: 409 },
++        );
++      }
++      if (replay.kind === "match") {
++        return NextResponse.json(
++          {
++            data: replay.replay.response,
++            meta: {
++              requestId,
++              traceId,
++              idempotentReplay: true,
++              event: {
++                ...replay.replay.replayMeta.event,
++              },
++              events: replay.replay.replayMeta.events,
++              warnings: replay.replay.replayMeta.warnings,
+             },
+-            events: replay.replay.replayMeta.events,
+-            warnings: replay.replay.replayMeta.warnings,
+-          },
+-        } satisfies ApiSuccess<IntentRecordApiData>,
+-        { status: 200 },
+-      );
++          } satisfies ApiSuccess<IntentRecordApiData>,
++          { status: 200 },
++        );
++      }
+     }
+-  }
+ 
+-  const startEvent = recordIntentEvent(
+-    "intent.record.input_started.v1",
+-    INTENT_RECORD_EVENT_MAP["intent.record.input_started.v1"],
+-    traceId,
+-    `${validation.value.assetId}:${idempotencyKey || traceId}`,
+-  );
+-  if (startEvent.duplicated) {
+-    console.warn("[intent-event] duplicate start_intent_input", {
++    const startEvent = recordIntentEvent(
++      "intent.record.input_started.v1",
++      INTENT_RECORD_EVENT_MAP["intent.record.input_started.v1"],
+       traceId,
+-      assetId: validation.value.assetId,
+-    });
+-  }
++      `${validation.value.assetId}:${idempotencyKey || traceId}`,
++    );
++    if (startEvent.duplicated) {
++      console.warn("[intent-event] duplicate start_intent_input", {
++        traceId,
++        assetId: validation.value.assetId,
++      });
++    }
+ 
+-  const intentRecord = upsertIntentRecord(validation.value, new Date().toISOString());
++    const intentRecord = upsertIntentRecord(validation.value, new Date().toISOString());
+ 
+-  const completeEvent = recordIntentEvent(
+-    "intent.record.saved.v1",
+-    INTENT_RECORD_EVENT_MAP["intent.record.saved.v1"],
+-    traceId,
+-    idempotencyKey || `${intentRecord.intentId}:${intentRecord.version}`,
+-  );
+-  if (completeEvent.duplicated) {
+-    console.warn("[intent-event] duplicate complete_intent_input", {
++    const completeEvent = recordIntentEvent(
++      "intent.record.saved.v1",
++      INTENT_RECORD_EVENT_MAP["intent.record.saved.v1"],
+       traceId,
+-      intentId: intentRecord.intentId,
+-    });
+-  }
++      idempotencyKey || `${intentRecord.intentId}:${intentRecord.version}`,
++    );
++    if (completeEvent.duplicated) {
++      console.warn("[intent-event] duplicate complete_intent_input", {
++        traceId,
++        intentId: intentRecord.intentId,
++      });
++    }
+ 
+-  const responseData: IntentRecordResponseDto = {
+-    intentRecord,
+-  };
++    const responseData: IntentRecordResponseDto = {
++      intentRecord,
++    };
+ 
+-  if (idempotencyKey) {
+-    rememberIntentRecordReplay(idempotencyKey, requestFingerprint, responseData, {
+-      event: completeEvent.envelope,
+-      events: [startEvent.envelope, completeEvent.envelope],
+-      warnings: [
+-        ...(startEvent.duplicated ? ["DUPLICATE_START_EVENT"] : []),
+-        ...(completeEvent.duplicated ? ["DUPLICATE_COMPLETE_EVENT"] : []),
+-      ],
+-    });
+-  }
+-
+-  return NextResponse.json(
+-    {
+-      data: responseData,
+-      meta: {
+-        requestId,
+-        traceId,
+-        idempotentReplay: false,
+-        event: {
+-          ...completeEvent.envelope,
+-        },
+-        events: [
+-          {
+-            ...startEvent.envelope,
+-          },
+-          {
+-            ...completeEvent.envelope,
+-          },
+-        ],
++    if (idempotencyKey) {
++      rememberIntentRecordReplay(idempotencyKey, requestFingerprint, responseData, {
++        event: completeEvent.envelope,
++        events: [startEvent.envelope, completeEvent.envelope],
+         warnings: [
+           ...(startEvent.duplicated ? ["DUPLICATE_START_EVENT"] : []),
+           ...(completeEvent.duplicated ? ["DUPLICATE_COMPLETE_EVENT"] : []),
+         ],
+-      },
+-    } satisfies ApiSuccess<IntentRecordApiData>,
+-    { status: 200 },
+-  );
++      });
++    }
++
++    return NextResponse.json(
++      {
++        data: responseData,
++        meta: {
++          requestId,
++          traceId,
++          idempotentReplay: false,
++          event: {
++            ...completeEvent.envelope,
++          },
++          events: [
++            {
++              ...startEvent.envelope,
++            },
++            {
++              ...completeEvent.envelope,
++            },
++          ],
++          warnings: [
++            ...(startEvent.duplicated ? ["DUPLICATE_START_EVENT"] : []),
++            ...(completeEvent.duplicated ? ["DUPLICATE_COMPLETE_EVENT"] : []),
++          ],
++        },
++      } satisfies ApiSuccess<IntentRecordApiData>,
++      { status: 200 },
++    );
++  };
++
++  if (!idempotencyKey) {
++    return execute();
++  }
++  return runWithIdempotencyKeyLock("intent-record", idempotencyKey, execute);
+ }
+diff --git a/src/app/api/intents/route.ts b/src/app/api/intents/route.ts
+index ba65a22..96e94b0 100644
+--- a/src/app/api/intents/route.ts
++++ b/src/app/api/intents/route.ts
+@@ -16,6 +16,7 @@ import {
+   getDiagnosticReplay,
+   rememberDiagnosticReplay,
+ } from "@/domain/intent/intent-diagnostic-idempotency";
++import { runWithIdempotencyKeyLock } from "@/domain/intent/idempotency-key-lock";
+ 
+ type IntentApiData = {
+   diagnostic: IntentDiagnosticResultDto;
+@@ -165,58 +166,67 @@ export async function POST(request: Request) {
+     );
+   }
+ 
++  const validatedInput = payload.input;
++  const validatedUiEventAlias = payload.uiEventAlias;
+   const requestFingerprint = buildRequestFingerprint({
+-    input: payload.input,
+-    uiEventAlias: payload.uiEventAlias,
++    input: validatedInput,
++    uiEventAlias: validatedUiEventAlias,
+   });
+ 
+-  if (idempotencyKey) {
+-    const replay = getDiagnosticReplay(idempotencyKey, requestFingerprint);
+-    if (replay.kind === "mismatch") {
+-      return NextResponse.json(
+-        buildError(
+-          requestId,
+-          "IDEMPOTENCY_KEY_REUSED",
+-          "동일 idempotency key로 서로 다른 요청은 허용되지 않습니다.",
+-          { traceId },
+-        ),
+-        { status: 409 },
+-      );
+-    }
+-    if (replay.kind === "match") {
+-      return NextResponse.json(
+-        {
+-          ...replay.replay.response,
+-          meta: {
+-            ...replay.replay.response.meta,
++  const execute = async () => {
++    if (idempotencyKey) {
++      const replay = getDiagnosticReplay(idempotencyKey, requestFingerprint);
++      if (replay.kind === "mismatch") {
++        return NextResponse.json(
++          buildError(
+             requestId,
+-            traceId,
+-            idempotentReplay: true,
++            "IDEMPOTENCY_KEY_REUSED",
++            "동일 idempotency key로 서로 다른 요청은 허용되지 않습니다.",
++            { traceId },
++          ),
++          { status: 409 },
++        );
++      }
++      if (replay.kind === "match") {
++        return NextResponse.json(
++          {
++            ...replay.replay.response,
++            meta: {
++              ...replay.replay.response.meta,
++              requestId,
++              traceId,
++              idempotentReplay: true,
++            },
+           },
+-        },
+-        { status: 200 },
+-      );
++          { status: 200 },
++        );
++      }
+     }
+-  }
+ 
+-  const diagnostic = deriveDiagnostic(payload.input);
+-  const response: ApiSuccess<IntentApiData> = {
+-    data: {
+-      diagnostic,
+-    },
+-    meta: {
+-      requestId,
+-      traceId,
+-      idempotentReplay: false,
+-      event: {
+-        canonical: EVENT_ALIAS_TO_CANONICAL[payload.uiEventAlias],
++    const diagnostic = deriveDiagnostic(validatedInput);
++    const response: ApiSuccess<IntentApiData> = {
++      data: {
++        diagnostic,
+       },
+-    },
++      meta: {
++        requestId,
++        traceId,
++        idempotentReplay: false,
++        event: {
++          canonical: EVENT_ALIAS_TO_CANONICAL[validatedUiEventAlias],
++        },
++      },
++    };
++
++    if (idempotencyKey) {
++      rememberDiagnosticReplay(idempotencyKey, requestFingerprint, response);
++    }
++
++    return NextResponse.json(response, { status: 200 });
+   };
+ 
+-  if (idempotencyKey) {
+-    rememberDiagnosticReplay(idempotencyKey, requestFingerprint, response);
++  if (!idempotencyKey) {
++    return execute();
+   }
+-
+-  return NextResponse.json(response, { status: 200 });
++  return runWithIdempotencyKeyLock("intent-diagnostic", idempotencyKey, execute);
+ }
+diff --git a/src/feature/intent/components/intent-form.tsx b/src/feature/intent/components/intent-form.tsx
+index 1f8cbc8..fe6ae88 100644
+--- a/src/feature/intent/components/intent-form.tsx
++++ b/src/feature/intent/components/intent-form.tsx
+@@ -78,6 +78,8 @@ const INITIAL_FORM: IntentFormState = {
+   changeReasonSummary: "초기 의향 등록",
+ };
+ 
++const UTC_ISO_8601_PATTERN = "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z";
++
+ export function IntentForm() {
+   const [form, setForm] = useState<IntentFormState>(INITIAL_FORM);
+   const [isSubmitting, setIsSubmitting] = useState(false);
+@@ -320,7 +322,7 @@ export function IntentForm() {
+             <input
+               id="periodStartAt"
+               className={styles.textField}
+-              pattern="\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"
++              pattern={UTC_ISO_8601_PATTERN}
+               title="예: 2026-04-06T00:00:00.000Z"
+               value={form.periodStartAt}
+               onChange={(event) => updateField("periodStartAt", event.target.value)}
+@@ -334,7 +336,7 @@ export function IntentForm() {
+             <input
+               id="periodEndAt"
+               className={styles.textField}
+-              pattern="\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"
++              pattern={UTC_ISO_8601_PATTERN}
+               title="예: 2026-05-06T00:00:00.000Z"
+               value={form.periodEndAt}
+               onChange={(event) => updateField("periodEndAt", event.target.value)}
+diff --git a/src/shared/contracts/event-envelope.ts b/src/shared/contracts/event-envelope.ts
+index 42b298b..02f90a0 100644
+--- a/src/shared/contracts/event-envelope.ts
++++ b/src/shared/contracts/event-envelope.ts
+@@ -2,5 +2,5 @@ export type EventEnvelope = {
+   eventId: string;
+   occurredAt: string;
+   traceId: string;
+-  schemaVersion: string;
++  schemaVersion: number;
+ };
+diff --git a/tests/e2e/core-user-flow.spec.ts b/tests/e2e/core-user-flow.spec.ts
+index 8e48b49..29ad5e9 100644
+--- a/tests/e2e/core-user-flow.spec.ts
++++ b/tests/e2e/core-user-flow.spec.ts
+@@ -26,15 +26,30 @@ test.describe("핵심 사용자 여정", () => {
+   test("키보드만으로 진단 입력/제출/결과 확인이 가능하다", async ({ page }) => {
+     await page.goto("/");
+ 
+-    await page.getByLabel("목표 명확도 높음").focus();
++    const goalDefault = page.getByLabel("목표 명확도 보통");
++    const productDefault = page.getByLabel("상품 이해도 보통");
++    const timeDefault = page.getByLabel("시간 압박 보통");
++    const liquidityDefault = page.getByLabel("유동성 필요 보통");
++    const submitButton = page.getByRole("button", { name: "진단 저장 및 다음 행동 보기" });
++
++    await page.keyboard.press("Tab");
++    await expect(goalDefault).toBeFocused();
+     await page.keyboard.press("Space");
+-    await page.getByLabel("상품 이해도 보통").focus();
++
++    await page.keyboard.press("Tab");
++    await expect(productDefault).toBeFocused();
+     await page.keyboard.press("Space");
+-    await page.getByLabel("시간 압박 높음").focus();
++
++    await page.keyboard.press("Tab");
++    await expect(timeDefault).toBeFocused();
+     await page.keyboard.press("Space");
+-    await page.getByLabel("유동성 필요 낮음").focus();
++
++    await page.keyboard.press("Tab");
++    await expect(liquidityDefault).toBeFocused();
+     await page.keyboard.press("Space");
+-    await page.getByRole("button", { name: "진단 저장 및 다음 행동 보기" }).focus();
++
++    await page.keyboard.press("Tab");
++    await expect(submitButton).toBeFocused();
+     await page.keyboard.press("Enter");
+ 
+     const statusRegion = page.getByRole("status");
+diff --git a/tests/e2e/intent-record-api.contract.spec.ts b/tests/e2e/intent-record-api.contract.spec.ts
+index f84ce61..44ac979 100644
+--- a/tests/e2e/intent-record-api.contract.spec.ts
++++ b/tests/e2e/intent-record-api.contract.spec.ts
+@@ -232,4 +232,42 @@ test.describe("의향 저장 API 계약", () => {
+     expect(payload.meta.event.canonical).toBe("view_landing");
+     expect(payload.data.diagnostic.next_step).toBeTruthy();
+   });
++
++  test("/api/intents 유효성 실패: 필수 입력 누락 시 INVALID_INPUT을 반환한다", async ({
++    request,
++  }) => {
++    const response = await request.post("/api/intents", {
++      data: {
++        input: {
++          goalClarity: "medium",
++          productClarity: "medium",
++        },
++        uiEventAlias: "state_assessed",
++      },
++    });
++
++    expect(response.status()).toBe(400);
++    const payload = await response.json();
++    expect(payload.error.code).toBe("INVALID_INPUT");
++  });
++
++  test("/api/intents 이벤트 별칭 실패: 지원하지 않는 alias면 INVALID_EVENT_ALIAS를 반환한다", async ({
++    request,
++  }) => {
++    const response = await request.post("/api/intents", {
++      data: {
++        input: {
++          goalClarity: "medium",
++          productClarity: "medium",
++          timePressure: "high",
++          liquidityNeed: "low",
++        },
++        uiEventAlias: "wrong_alias",
++      },
++    });
++
++    expect(response.status()).toBe(400);
++    const payload = await response.json();
++    expect(payload.error.code).toBe("INVALID_EVENT_ALIAS");
++  });
+ });
+
+diff --git a/src/domain/intent/idempotency-key-lock.ts b/src/domain/intent/idempotency-key-lock.ts
+new file mode 100644
+--- /dev/null
++++ b/src/domain/intent/idempotency-key-lock.ts
+@@ -0,0 +1,27 @@
++const lockTails = new Map<string, Promise<void>>();
++
++export async function runWithIdempotencyKeyLock<T>(
++  namespace: string,
++  idempotencyKey: string,
++  task: () => Promise<T>,
++): Promise<T> {
++  const lockKey = `${namespace}:${idempotencyKey}`;
++  const previousTail = lockTails.get(lockKey) ?? Promise.resolve();
++
++  let releaseCurrent!: () => void;
++  const currentTail = new Promise<void>((resolve) => {
++    releaseCurrent = resolve;
++  });
++  const mergedTail = previousTail.then(() => currentTail);
++  lockTails.set(lockKey, mergedTail);
++
++  await previousTail;
++  try {
++    return await task();
++  } finally {
++    releaseCurrent();
++    if (lockTails.get(lockKey) === mergedTail) {
++      lockTails.delete(lockKey);
++    }
++  }
++}

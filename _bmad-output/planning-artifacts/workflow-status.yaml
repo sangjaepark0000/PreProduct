@@ -1,0 +1,12 @@
+workflow_status:
+  prd: "_bmad-output/planning-artifacts/prd.md"
+  create-ux-design: "_bmad-output/planning-artifacts/ux-design-specification-2026-04-07-revision.md"
+  correct-course: "_bmad-output/planning-artifacts/sprint-change-proposal-2026-04-07-analysis-restart.md"
+  analysis-restart-approved: "_bmad-output/planning-artifacts/sprint-change-proposal-2026-04-07-analysis-restart.md"
+next_recommended:
+  - "[CB] bmad-product-brief"
+  - "[MR] bmad-market-research"
+  - "[TR] bmad-technical-research"
+  - "[DR] bmad-domain-research"
+updated_at: "2026-04-07T23:59:59+09:00"
+

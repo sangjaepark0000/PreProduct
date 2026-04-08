@@ -1,0 +1,868 @@
+diff --git a/src/app/api/intents/records/route.ts b/src/app/api/intents/records/route.ts
+new file mode 100644
+index 0000000..34bb15c
+--- /dev/null
++++ b/src/app/api/intents/records/route.ts
+@@ -0,0 +1,137 @@
++import { NextResponse } from "next/server";
++import type { ApiError, ApiSuccess } from "@/shared/contracts/api-response";
++import {
++  INTENT_RECORD_EVENT_MAP,
++  type IntentRecordRequestDto,
++  type IntentRecordResponseDto,
++} from "@/shared/contracts/intent-record";
++import { mapIntentRecordRequest } from "@/infra/mapper/intent-record-mapper";
++import { validateIntentRecordInput } from "@/domain/intent/intent-record-validator";
++import {
++  getIntentRecordReplay,
++  rememberIntentRecordReplay,
++  upsertIntentRecord,
++} from "@/domain/intent/intent-record-service";
++import { recordIntentEvent } from "@/domain/intent/intent-event-log";
++
++type IntentRecordApiData = IntentRecordResponseDto;
++
++function buildError(
++  requestId: string,
++  code: string,
++  message: string,
++  details?: Record<string, unknown>,
++): ApiError {
++  return {
++    error: {
++      code,
++      message,
++      details,
++      requestId,
++    },
++  };
++}
++
++export async function POST(request: Request) {
++  const requestId = crypto.randomUUID();
++  const traceId = request.headers.get("x-trace-id") ?? requestId;
++  const idempotencyKey = request.headers.get("x-idempotency-key") ?? "";
++
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_JSON", "JSON 본문을 파싱할 수 없습니다.", { traceId }),
++      { status: 400 },
++    );
++  }
++
++  const payload = mapIntentRecordRequest(body) as Partial<IntentRecordRequestDto>;
++  const validation = validateIntentRecordInput(payload.input);
++  if (!validation.ok) {
++    return NextResponse.json(
++      buildError(requestId, validation.code, validation.message, {
++        traceId,
++        ...validation.details,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (idempotencyKey) {
++    const replay = getIntentRecordReplay(idempotencyKey);
++    if (replay) {
++      return NextResponse.json(
++        {
++          data: replay,
++          meta: {
++            requestId,
++            traceId,
++            idempotentReplay: true,
++            event: {
++              name: "intent.record.saved.v1",
++              canonical: INTENT_RECORD_EVENT_MAP["intent.record.saved.v1"],
++            },
++          },
++        } satisfies ApiSuccess<IntentRecordApiData>,
++        { status: 200 },
++      );
++    }
++  }
++
++  const startEvent = recordIntentEvent(
++    "intent.record.input_started.v1",
++    INTENT_RECORD_EVENT_MAP["intent.record.input_started.v1"],
++    traceId,
++    `${validation.value.assetId}:${idempotencyKey || traceId}`,
++  );
++  if (startEvent.duplicated) {
++    console.warn("[intent-event] duplicate start_intent_input", {
++      traceId,
++      assetId: validation.value.assetId,
++    });
++  }
++
++  const intentRecord = upsertIntentRecord(validation.value, new Date().toISOString());
++
++  const completeEvent = recordIntentEvent(
++    "intent.record.saved.v1",
++    INTENT_RECORD_EVENT_MAP["intent.record.saved.v1"],
++    traceId,
++    idempotencyKey || `${intentRecord.intentId}:${intentRecord.version}`,
++  );
++  if (completeEvent.duplicated) {
++    console.warn("[intent-event] duplicate complete_intent_input", {
++      traceId,
++      intentId: intentRecord.intentId,
++    });
++  }
++
++  const responseData: IntentRecordResponseDto = {
++    intentRecord,
++  };
++
++  if (idempotencyKey) {
++    rememberIntentRecordReplay(idempotencyKey, responseData);
++  }
++
++  return NextResponse.json(
++    {
++      data: responseData,
++      meta: {
++        requestId,
++        traceId,
++        idempotentReplay: false,
++        event: {
++          ...completeEvent.envelope,
++        },
++        warnings: [
++          ...(startEvent.duplicated ? ["DUPLICATE_START_EVENT"] : []),
++          ...(completeEvent.duplicated ? ["DUPLICATE_COMPLETE_EVENT"] : []),
++        ],
++      },
++    } satisfies ApiSuccess<IntentRecordApiData>,
++    { status: 200 },
++  );
++}
+diff --git a/src/app/api/intents/route.ts b/src/app/api/intents/route.ts
+new file mode 100644
+index 0000000..5ef9e7b
+--- /dev/null
++++ b/src/app/api/intents/route.ts
+@@ -0,0 +1,188 @@
++import { NextResponse } from "next/server";
++import type { ApiError, ApiSuccess } from "@/shared/contracts/api-response";
++import {
++  EVENT_ALIAS_TO_CANONICAL,
++  GOAL_CLARITY_VALUES,
++  LIQUIDITY_NEED_VALUES,
++  PRODUCT_CLARITY_VALUES,
++  TIME_PRESSURE_VALUES,
++  type GoalConfidence,
++  type IntentDiagnosticInputDto,
++  type IntentDiagnosticRequestDto,
++  type IntentDiagnosticResultDto,
++  type IntentMaturity,
++} from "@/shared/contracts/intent-diagnostic";
++
++type IntentApiData = {
++  diagnostic: IntentDiagnosticResultDto;
++};
++
++const idemStore = new Map<string, ApiSuccess<IntentApiData>>();
++
++function isEnumValue<T extends readonly string[]>(value: unknown, values: T): value is T[number] {
++  return typeof value === "string" && values.includes(value);
++}
++
++function validateInput(input: unknown): input is IntentDiagnosticInputDto {
++  if (typeof input !== "object" || input === null) {
++    return false;
++  }
++
++  const candidate = input as Partial<IntentDiagnosticInputDto>;
++  return (
++    isEnumValue(candidate.goalClarity, GOAL_CLARITY_VALUES) &&
++    isEnumValue(candidate.productClarity, PRODUCT_CLARITY_VALUES) &&
++    isEnumValue(candidate.timePressure, TIME_PRESSURE_VALUES) &&
++    isEnumValue(candidate.liquidityNeed, LIQUIDITY_NEED_VALUES)
++  );
++}
++
++function buildError(
++  requestId: string,
++  code: string,
++  message: string,
++  details?: Record<string, unknown>,
++): ApiError {
++  return {
++    error: {
++      code,
++      message,
++      details,
++      requestId,
++    },
++  };
++}
++
++function toNumeric(value: "low" | "medium" | "high"): number {
++  if (value === "low") return 1;
++  if (value === "high") return 3;
++  return 2;
++}
++
++function deriveDiagnostic(input: IntentDiagnosticInputDto): IntentDiagnosticResultDto {
++  const goalScore = toNumeric(input.goalClarity);
++  const productScore = toNumeric(input.productClarity);
++  const timeScore = toNumeric(input.timePressure);
++  const liquidityScore = toNumeric(input.liquidityNeed);
++
++  const clarityAverage = (goalScore + productScore) / 2;
++  const pressureAverage = (timeScore + liquidityScore) / 2;
++
++  let intentMaturity: IntentMaturity = "explore";
++  let goalConfidence: GoalConfidence = "low";
++  let nextStep = "탐색 시작: 관심 상품 2개를 비교해 차이를 기록하세요.";
++  let reversibilityHint = "가벼운 비교부터 시작해도 되며, 언제든 기준을 바꿀 수 있습니다.";
++
++  if (clarityAverage >= 2.5 && pressureAverage >= 2.5) {
++    intentMaturity = "prepare";
++    goalConfidence = "high";
++    nextStep = "판단 준비: 우선순위 기준 3가지를 고정하고 즉시 판단 카드로 이동하세요.";
++    reversibilityHint = "기준 확정 후에도 다음 세션에서 기준 가중치를 조정할 수 있습니다.";
++  } else if (clarityAverage >= 1.75) {
++    intentMaturity = "refine";
++    goalConfidence = "medium";
++    nextStep = "의향 보완: 목표 기간과 허용 손실 범위를 먼저 채우세요.";
++    reversibilityHint = "입력한 의향은 언제든 수정 가능하며 결정은 보류할 수 있습니다.";
++  }
++
++  return {
++    intent_maturity: intentMaturity,
++    goal_confidence: goalConfidence,
++    next_step: nextStep,
++    reversibility_hint: reversibilityHint,
++    occurredAt: new Date().toISOString(),
++  };
++}
++
++export async function POST(request: Request) {
++  const requestId = crypto.randomUUID();
++  const traceId = request.headers.get("x-trace-id") ?? requestId;
++  const idempotencyKey = request.headers.get("x-idempotency-key");
++
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_JSON", "JSON 본문을 파싱할 수 없습니다.", {
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (typeof body !== "object" || body === null) {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_BODY", "요청 본문은 객체여야 합니다.", {
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  const payload = body as Partial<IntentDiagnosticRequestDto>;
++  if (!validateInput(payload.input)) {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_INPUT", "필수 필드가 누락되었거나 범위를 벗어났습니다.", {
++        expected: {
++          goalClarity: GOAL_CLARITY_VALUES,
++          productClarity: PRODUCT_CLARITY_VALUES,
++          timePressure: TIME_PRESSURE_VALUES,
++          liquidityNeed: LIQUIDITY_NEED_VALUES,
++        },
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (payload.uiEventAlias !== "state_assessed") {
++    return NextResponse.json(
++      buildError(requestId, "INVALID_EVENT_ALIAS", "지원하지 않는 UI 이벤트 별칭입니다.", {
++        expected: "state_assessed",
++        traceId,
++      }),
++      { status: 400 },
++    );
++  }
++
++  if (idempotencyKey && idemStore.has(idempotencyKey)) {
++    const replay = idemStore.get(idempotencyKey);
++    return NextResponse.json(
++      {
++        ...replay,
++        meta: {
++          ...replay?.meta,
++          requestId,
++          traceId,
++          idempotentReplay: true,
++          event: {
++            canonical: EVENT_ALIAS_TO_CANONICAL[payload.uiEventAlias],
++          },
++        },
++      },
++      { status: 200 },
++    );
++  }
++
++  const diagnostic = deriveDiagnostic(payload.input);
++  const response: ApiSuccess<IntentApiData> = {
++    data: {
++      diagnostic,
++    },
++    meta: {
++      requestId,
++      traceId,
++      idempotentReplay: false,
++      event: {
++        canonical: EVENT_ALIAS_TO_CANONICAL[payload.uiEventAlias],
++      },
++    },
++  };
++
++  if (idempotencyKey) {
++    idemStore.set(idempotencyKey, response);
++  }
++
++  return NextResponse.json(response, { status: 200 });
++}
+diff --git a/src/domain/README.md b/src/domain/README.md
+new file mode 100644
+index 0000000..3397b3c
+--- /dev/null
++++ b/src/domain/README.md
+@@ -0,0 +1,3 @@
++# Domain Layer
++
++도메인 규칙, 엔티티, 유스케이스 인터페이스를 둡니다.
+diff --git a/src/domain/intent/intent-event-log.ts b/src/domain/intent/intent-event-log.ts
+new file mode 100644
+index 0000000..5ddc25f
+--- /dev/null
++++ b/src/domain/intent/intent-event-log.ts
+@@ -0,0 +1,41 @@
++import type {
++  IntentRecordEventCanonical,
++  IntentRecordEventName,
++} from "@/shared/contracts/intent-record";
++
++export type IntentEventEnvelope = {
++  eventId: string;
++  eventName: IntentRecordEventName;
++  canonical: IntentRecordEventCanonical;
++  occurredAt: string;
++  traceId: string;
++  schemaVersion: number;
++};
++
++const dedupeKeys = new Set<string>();
++
++export function recordIntentEvent(
++  eventName: IntentRecordEventName,
++  canonical: IntentRecordEventCanonical,
++  traceId: string,
++  dedupeKey: string,
++): { envelope: IntentEventEnvelope; duplicated: boolean } {
++  const dedupeToken = `${eventName}:${dedupeKey}`;
++  const duplicated = dedupeKeys.has(dedupeToken);
++
++  if (!duplicated) {
++    dedupeKeys.add(dedupeToken);
++  }
++
++  return {
++    duplicated,
++    envelope: {
++      eventId: `evt_${crypto.randomUUID()}`,
++      eventName,
++      canonical,
++      occurredAt: new Date().toISOString(),
++      traceId,
++      schemaVersion: 1,
++    },
++  };
++}
+diff --git a/src/domain/intent/intent-record-service.ts b/src/domain/intent/intent-record-service.ts
+new file mode 100644
+index 0000000..3af3765
+--- /dev/null
++++ b/src/domain/intent/intent-record-service.ts
+@@ -0,0 +1,61 @@
++import type {
++  IntentRecordDto,
++  IntentRecordInputDto,
++  IntentRecordResponseDto,
++} from "@/shared/contracts/intent-record";
++
++const intentStore = new Map<string, IntentRecordDto>();
++const idempotencyStore = new Map<string, IntentRecordResponseDto>();
++
++export function getIntentRecordReplay(idempotencyKey: string): IntentRecordResponseDto | undefined {
++  return idempotencyStore.get(idempotencyKey);
++}
++
++export function rememberIntentRecordReplay(idempotencyKey: string, response: IntentRecordResponseDto) {
++  idempotencyStore.set(idempotencyKey, response);
++}
++
++export function upsertIntentRecord(input: IntentRecordInputDto, nowIso: string): IntentRecordDto {
++  const existing = intentStore.get(input.assetId);
++
++  if (!existing) {
++    const created: IntentRecordDto = {
++      intentId: `ir_${crypto.randomUUID()}`,
++      assetId: input.assetId,
++      intentType: input.intentType,
++      disposalIntentType: input.disposalIntentType,
++      timePressure: input.timePressure,
++      liquidityNeed: input.liquidityNeed,
++      budgetConstraint: input.budgetConstraint,
++      periodConstraint: input.periodConstraint,
++      isPublicIntent: input.isPublicIntent,
++      version: 1,
++      updatedAt: nowIso,
++      changeReasonSummary: input.changeReasonSummary,
++    };
++
++    intentStore.set(created.assetId, created);
++    return created;
++  }
++
++  const updated: IntentRecordDto = {
++    ...existing,
++    intentType: input.intentType,
++    disposalIntentType: input.disposalIntentType,
++    timePressure: input.timePressure,
++    liquidityNeed: input.liquidityNeed,
++    budgetConstraint: input.budgetConstraint,
++    periodConstraint: input.periodConstraint,
++    isPublicIntent: input.isPublicIntent,
++    version: existing.version + 1,
++    updatedAt: nowIso,
++    changeReasonSummary: input.changeReasonSummary,
++  };
++
++  intentStore.set(updated.assetId, updated);
++  return updated;
++}
++
++export function getIntentRecordCountByAsset(assetId: string): number {
++  return intentStore.has(assetId) ? 1 : 0;
++}
+diff --git a/src/domain/intent/intent-record-validator.ts b/src/domain/intent/intent-record-validator.ts
+new file mode 100644
+index 0000000..c134bf9
+--- /dev/null
++++ b/src/domain/intent/intent-record-validator.ts
+@@ -0,0 +1,147 @@
++import type {
++  BudgetConstraint,
++  IntentRecordInputDto,
++  PeriodConstraint,
++} from "@/shared/contracts/intent-record";
++import {
++  DISPOSAL_INTENT_TYPE_VALUES,
++  INTENT_TYPE_VALUES,
++  LIQUIDITY_NEED_VALUES,
++  TIME_PRESSURE_VALUES,
++} from "@/shared/contracts/intent-record";
++
++type ValidationSuccess = {
++  ok: true;
++  value: IntentRecordInputDto;
++};
++
++type ValidationFailure = {
++  ok: false;
++  code: "INVALID_INPUT" | "INVALID_CONSTRAINT";
++  message: string;
++  details?: Record<string, unknown>;
++};
++
++export type IntentRecordValidationResult = ValidationSuccess | ValidationFailure;
++
++function isEnumValue<T extends readonly string[]>(value: unknown, values: T): value is T[number] {
++  return typeof value === "string" && values.includes(value);
++}
++
++function isBudgetConstraint(value: unknown): value is BudgetConstraint {
++  if (typeof value !== "object" || value === null) {
++    return false;
++  }
++
++  const candidate = value as Partial<BudgetConstraint>;
++  return (
++    typeof candidate.min === "number" &&
++    typeof candidate.max === "number" &&
++    Number.isFinite(candidate.min) &&
++    Number.isFinite(candidate.max) &&
++    typeof candidate.currency === "string" &&
++    candidate.currency.trim().length > 0
++  );
++}
++
++function isPeriodConstraint(value: unknown): value is PeriodConstraint {
++  if (typeof value !== "object" || value === null) {
++    return false;
++  }
++
++  const candidate = value as Partial<PeriodConstraint>;
++  return typeof candidate.startAt === "string" && typeof candidate.endAt === "string";
++}
++
++export function validateIntentRecordInput(input: unknown): IntentRecordValidationResult {
++  if (typeof input !== "object" || input === null) {
++    return {
++      ok: false,
++      code: "INVALID_INPUT",
++      message: "의향 입력 본문은 객체여야 합니다.",
++    };
++  }
++
++  const candidate = input as Partial<IntentRecordInputDto>;
++  if (
++    typeof candidate.assetId !== "string" ||
++    candidate.assetId.trim().length === 0 ||
++    !isEnumValue(candidate.intentType, INTENT_TYPE_VALUES) ||
++    !isEnumValue(candidate.disposalIntentType, DISPOSAL_INTENT_TYPE_VALUES) ||
++    !isEnumValue(candidate.timePressure, TIME_PRESSURE_VALUES) ||
++    !isEnumValue(candidate.liquidityNeed, LIQUIDITY_NEED_VALUES) ||
++    !isBudgetConstraint(candidate.budgetConstraint) ||
++    !isPeriodConstraint(candidate.periodConstraint) ||
++    typeof candidate.isPublicIntent !== "boolean" ||
++    typeof candidate.changeReasonSummary !== "string" ||
++    candidate.changeReasonSummary.trim().length === 0
++  ) {
++    return {
++      ok: false,
++      code: "INVALID_INPUT",
++      message: "필수 입력값이 누락되었거나 형식이 올바르지 않습니다.",
++      details: {
++        required: [
++          "assetId",
++          "intentType",
++          "disposalIntentType",
++          "timePressure",
++          "liquidityNeed",
++          "budgetConstraint",
++          "periodConstraint",
++          "isPublicIntent",
++          "changeReasonSummary",
++        ],
++      },
++    };
++  }
++
++  if (candidate.budgetConstraint.min < 0 || candidate.budgetConstraint.max < 0) {
++    return {
++      ok: false,
++      code: "INVALID_CONSTRAINT",
++      message: "예산 범위는 0 이상이어야 합니다.",
++    };
++  }
++
++  if (candidate.budgetConstraint.min > candidate.budgetConstraint.max) {
++    return {
++      ok: false,
++      code: "INVALID_CONSTRAINT",
++      message: "budgetConstraint.min은 max보다 클 수 없습니다.",
++    };
++  }
++
++  const startAt = Date.parse(candidate.periodConstraint.startAt);
++  const endAt = Date.parse(candidate.periodConstraint.endAt);
++  if (Number.isNaN(startAt) || Number.isNaN(endAt)) {
++    return {
++      ok: false,
++      code: "INVALID_CONSTRAINT",
++      message: "periodConstraint는 ISO-8601 UTC 시각이어야 합니다.",
++    };
++  }
++
++  if (startAt > endAt) {
++    return {
++      ok: false,
++      code: "INVALID_CONSTRAINT",
++      message: "periodConstraint.startAt은 endAt보다 늦을 수 없습니다.",
++    };
++  }
++
++  const validated = candidate as IntentRecordInputDto;
++
++  return {
++    ok: true,
++    value: {
++      ...validated,
++      assetId: validated.assetId.trim(),
++      changeReasonSummary: validated.changeReasonSummary.trim(),
++      budgetConstraint: {
++        ...validated.budgetConstraint,
++        currency: validated.budgetConstraint.currency.trim().toUpperCase(),
++      },
++    },
++  };
++}
+diff --git a/src/infra/README.md b/src/infra/README.md
+new file mode 100644
+index 0000000..f6ae0d8
+--- /dev/null
++++ b/src/infra/README.md
+@@ -0,0 +1,4 @@
++# Infra Layer
++
++외부 포맷과 내부 포맷의 변환, I/O 어댑터 구현을 둡니다.
++케이싱 변환은 `infra/mapper`에서만 처리합니다.
+diff --git a/src/infra/mapper/case-mapper.ts b/src/infra/mapper/case-mapper.ts
+new file mode 100644
+index 0000000..7209b6f
+--- /dev/null
++++ b/src/infra/mapper/case-mapper.ts
+@@ -0,0 +1,18 @@
++export type AnyRecord = Record<string, unknown>;
++
++export function snakeToCamelCase(input: string): string {
++  return input.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
++}
++
++export function mapTopLevelKeysSnakeToCamel<T extends AnyRecord>(source: T): AnyRecord {
++  return Object.entries(source).reduce<AnyRecord>((acc, [key, value]) => {
++    const mappedKey = snakeToCamelCase(key);
++    if (Object.prototype.hasOwnProperty.call(acc, mappedKey)) {
++      throw new Error(`Key collision while mapping snake_case to camelCase: ${key} -> ${mappedKey}`);
++    }
++    acc[mappedKey] = value;
++    return acc;
++  }, {});
++}
++
++export const mapKeysSnakeToCamel = mapTopLevelKeysSnakeToCamel;
+diff --git a/src/infra/mapper/intent-record-mapper.ts b/src/infra/mapper/intent-record-mapper.ts
+new file mode 100644
+index 0000000..13b5ab2
+--- /dev/null
++++ b/src/infra/mapper/intent-record-mapper.ts
+@@ -0,0 +1,35 @@
++import type { IntentRecordRequestDto } from "@/shared/contracts/intent-record";
++import { mapTopLevelKeysSnakeToCamel } from "@/infra/mapper/case-mapper";
++
++function mapConstraintKeys(value: unknown): unknown {
++  if (typeof value !== "object" || value === null) {
++    return value;
++  }
++
++  return mapTopLevelKeysSnakeToCamel(value as Record<string, unknown>);
++}
++
++export function mapIntentRecordRequest(body: unknown): Partial<IntentRecordRequestDto> {
++  if (typeof body !== "object" || body === null) {
++    return {};
++  }
++
++  const mapped = mapTopLevelKeysSnakeToCamel(body as Record<string, unknown>);
++  const input = mapped.input;
++  if (typeof input !== "object" || input === null) {
++    return mapped as Partial<IntentRecordRequestDto>;
++  }
++
++  const mappedInput = mapTopLevelKeysSnakeToCamel(input as Record<string, unknown>);
++  const budgetConstraint = mapConstraintKeys(mappedInput.budgetConstraint);
++  const periodConstraint = mapConstraintKeys(mappedInput.periodConstraint);
++
++  return {
++    ...mapped,
++    input: {
++      ...mappedInput,
++      budgetConstraint,
++      periodConstraint,
++    },
++  } as Partial<IntentRecordRequestDto>;
++}
+diff --git a/src/shared/README.md b/src/shared/README.md
+new file mode 100644
+index 0000000..db9b8c8
+--- /dev/null
++++ b/src/shared/README.md
+@@ -0,0 +1,3 @@
++# Shared Layer
++
++공통 타입, 계약, 환경 검증 로직을 둡니다.
+diff --git a/src/shared/config/env.ts b/src/shared/config/env.ts
+new file mode 100644
+index 0000000..8a73929
+--- /dev/null
++++ b/src/shared/config/env.ts
+@@ -0,0 +1,14 @@
++function getEnvValue(key: "NEXT_PUBLIC_APP_NAME", fallback?: string): string {
++  const value = process.env[key];
++  if (!value) {
++    if (fallback) {
++      return fallback;
++    }
++    throw new Error(`Missing required environment variable: ${key}`);
++  }
++  return value;
++}
++
++export const env = {
++  NEXT_PUBLIC_APP_NAME: getEnvValue("NEXT_PUBLIC_APP_NAME", "PreProduct"),
++};
+diff --git a/src/shared/contracts/api-response.ts b/src/shared/contracts/api-response.ts
+new file mode 100644
+index 0000000..e83bc3a
+--- /dev/null
++++ b/src/shared/contracts/api-response.ts
+@@ -0,0 +1,15 @@
++export type ApiSuccess<T> = {
++  data: T;
++  meta: Record<string, unknown>;
++};
++
++export type ApiError = {
++  error: {
++    code: string;
++    message: string;
++    details?: Record<string, unknown>;
++    requestId: string;
++  };
++};
++
++export type ApiResponse<T> = ApiSuccess<T> | ApiError;
+diff --git a/src/shared/contracts/event-envelope.ts b/src/shared/contracts/event-envelope.ts
+new file mode 100644
+index 0000000..42b298b
+--- /dev/null
++++ b/src/shared/contracts/event-envelope.ts
+@@ -0,0 +1,6 @@
++export type EventEnvelope = {
++  eventId: string;
++  occurredAt: string;
++  traceId: string;
++  schemaVersion: string;
++};
+diff --git a/src/shared/contracts/intent-diagnostic.ts b/src/shared/contracts/intent-diagnostic.ts
+new file mode 100644
+index 0000000..659d091
+--- /dev/null
++++ b/src/shared/contracts/intent-diagnostic.ts
+@@ -0,0 +1,43 @@
++export const GOAL_CLARITY_VALUES = ["low", "medium", "high"] as const;
++export const PRODUCT_CLARITY_VALUES = ["low", "medium", "high"] as const;
++export const TIME_PRESSURE_VALUES = ["low", "medium", "high"] as const;
++export const LIQUIDITY_NEED_VALUES = ["low", "medium", "high"] as const;
++
++export type GoalClarity = (typeof GOAL_CLARITY_VALUES)[number];
++export type ProductClarity = (typeof PRODUCT_CLARITY_VALUES)[number];
++export type TimePressure = (typeof TIME_PRESSURE_VALUES)[number];
++export type LiquidityNeed = (typeof LIQUIDITY_NEED_VALUES)[number];
++
++export type IntentMaturity = "explore" | "refine" | "prepare";
++export type GoalConfidence = "low" | "medium" | "high";
++
++export type IntentDiagnosticInputDto = {
++  goalClarity: GoalClarity;
++  productClarity: ProductClarity;
++  timePressure: TimePressure;
++  liquidityNeed: LiquidityNeed;
++};
++
++export type IntentDiagnosticResultDto = {
++  intent_maturity: IntentMaturity;
++  goal_confidence: GoalConfidence;
++  next_step: string;
++  reversibility_hint: string;
++  occurredAt: string;
++};
++
++export type IntentDiagnosticEventAlias = "state_assessed";
++export type IntentDiagnosticEventCanonical = "view_landing";
++
++export type IntentDiagnosticRequestDto = {
++  input: IntentDiagnosticInputDto;
++  uiEventAlias: IntentDiagnosticEventAlias;
++};
++
++export const EVENT_ALIAS_TO_CANONICAL: Record<
++  IntentDiagnosticEventAlias,
++  IntentDiagnosticEventCanonical
++> = {
++  state_assessed: "view_landing",
++};
++
+diff --git a/src/shared/contracts/intent-record.ts b/src/shared/contracts/intent-record.ts
+new file mode 100644
+index 0000000..397fc97
+--- /dev/null
++++ b/src/shared/contracts/intent-record.ts
+@@ -0,0 +1,63 @@
++export const INTENT_TYPE_VALUES = ["buy", "sell", "hold"] as const;
++export const DISPOSAL_INTENT_TYPE_VALUES = ["upgrade", "exit", "liquidity"] as const;
++export const TIME_PRESSURE_VALUES = ["low", "medium", "high"] as const;
++export const LIQUIDITY_NEED_VALUES = ["low", "medium", "high"] as const;
++
++export type IntentType = (typeof INTENT_TYPE_VALUES)[number];
++export type DisposalIntentType = (typeof DISPOSAL_INTENT_TYPE_VALUES)[number];
++export type TimePressure = (typeof TIME_PRESSURE_VALUES)[number];
++export type LiquidityNeed = (typeof LIQUIDITY_NEED_VALUES)[number];
++
++export type BudgetConstraint = {
++  min: number;
++  max: number;
++  currency: string;
++};
++
++export type PeriodConstraint = {
++  startAt: string;
++  endAt: string;
++};
++
++export type IntentRecordDto = {
++  intentId: string;
++  assetId: string;
++  intentType: IntentType;
++  disposalIntentType: DisposalIntentType;
++  timePressure: TimePressure;
++  liquidityNeed: LiquidityNeed;
++  budgetConstraint: BudgetConstraint;
++  periodConstraint: PeriodConstraint;
++  isPublicIntent: boolean;
++  version: number;
++  updatedAt: string;
++  changeReasonSummary: string;
++};
++
++export type IntentRecordInputDto = {
++  assetId: string;
++  intentType: IntentType;
++  disposalIntentType: DisposalIntentType;
++  timePressure: TimePressure;
++  liquidityNeed: LiquidityNeed;
++  budgetConstraint: BudgetConstraint;
++  periodConstraint: PeriodConstraint;
++  isPublicIntent: boolean;
++  changeReasonSummary: string;
++};
++
++export type IntentRecordRequestDto = {
++  input: IntentRecordInputDto;
++};
++
++export type IntentRecordResponseDto = {
++  intentRecord: IntentRecordDto;
++};
++
++export type IntentRecordEventCanonical = "start_intent_input" | "complete_intent_input";
++export type IntentRecordEventName = "intent.record.input_started.v1" | "intent.record.saved.v1";
++
++export const INTENT_RECORD_EVENT_MAP: Record<IntentRecordEventName, IntentRecordEventCanonical> = {
++  "intent.record.input_started.v1": "start_intent_input",
++  "intent.record.saved.v1": "complete_intent_input",
++};

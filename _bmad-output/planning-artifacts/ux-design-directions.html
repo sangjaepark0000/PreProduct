@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PreProduct UX Design Directions</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --text: #17212b;
+      --card: #ffffff;
+      --line: #d7dee6;
+      --primary: #1f5fa8;
+      --accent: #14b8a6;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Pretendard", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    header { padding: 24px; background: linear-gradient(120deg, #1f5fa8, #14b8a6); color: #fff; }
+    main { padding: 20px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+    p { margin: 0 0 8px; line-height: 1.5; }
+    .chip { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #e8f0fb; color: #1f5fa8; margin-right: 6px; }
+    .bar { height: 8px; border-radius: 999px; background: #e9edf2; overflow: hidden; }
+    .bar > span { display: block; height: 100%; background: var(--accent); width: 72%; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PreProduct Design Directions</h1>
+    <p>등록 완주율과 실패 복구 UX를 중심으로 6개 방향을 비교합니다.</p>
+  </header>
+  <main>
+    <section>
+      <h2>Direction 01: Command Flow</h2>
+      <p>단계 진행과 완료 CTA를 가장 강하게 드러내는 구조.</p>
+      <span class="chip">완료 중심</span><span class="chip">저마찰</span>
+      <div class="bar"><span style="width:84%"></span></div>
+    </section>
+    <section>
+      <h2>Direction 02: Guided Coach</h2>
+      <p>문장형 가이드를 전면에 배치해 초보 사용자 불안을 완화.</p>
+      <span class="chip">안심감</span><span class="chip">온보딩</span>
+      <div class="bar"><span style="width:75%"></span></div>
+    </section>
+    <section>
+      <h2>Direction 03: Data Compact</h2>
+      <p>정보 밀도 높은 카드로 수정/확정을 빠르게 처리하는 방식.</p>
+      <span class="chip">고밀도</span><span class="chip">숙련자</span>
+      <div class="bar"><span style="width:68%"></span></div>
+    </section>
+    <section>
+      <h2>Direction 04: Recovery First</h2>
+      <p>오류/실패 복구 동선을 우선 노출해 이탈 방지에 집중.</p>
+      <span class="chip">복구 우선</span><span class="chip">신뢰</span>
+      <div class="bar"><span style="width:80%"></span></div>
+    </section>
+    <section>
+      <h2>Direction 05: Evidence Card</h2>
+      <p>AI 추천 근거와 수정 가능성을 카드 상단에서 명확히 전달.</p>
+      <span class="chip">설명 가능</span><span class="chip">통제감</span>
+      <div class="bar"><span style="width:78%"></span></div>
+    </section>
+    <section>
+      <h2>Direction 06: Split Stage</h2>
+      <p>등록 단계와 가격결정 단계를 분리해 인지부하를 낮춤.</p>
+      <span class="chip">단계 분리</span><span class="chip">명확성</span>
+      <div class="bar"><span style="width:73%"></span></div>
+    </section>
+  </main>
+</body>
+</html>

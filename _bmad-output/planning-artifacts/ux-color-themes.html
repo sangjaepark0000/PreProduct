@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PreProduct Color Themes</title>
+  <style>
+    body { margin:0; font-family:Pretendard,system-ui,sans-serif; background:#f5f7fb; color:#0f172a; }
+    header { padding:20px; background:#fff; border-bottom:1px solid #dbe2ea; }
+    h1 { margin:0 0 8px; font-size:22px; }
+    p { margin:0; color:#475569; }
+    main { max-width:1100px; margin:0 auto; padding:20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+    .theme { background:#fff; border:1px solid #dbe2ea; border-radius:14px; overflow:hidden; }
+    .top { padding:12px 14px; font-weight:700; border-bottom:1px solid #dbe2ea; }
+    .swatches { padding:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .sw { border-radius:10px; padding:12px; color:#fff; font-size:12px; font-weight:700; min-height:56px; }
+    .demo { padding:14px; border-top:1px dashed #dbe2ea; }
+    .card { border:1px solid #dbe2ea; border-left:4px solid var(--primary); border-radius:10px; padding:10px; background:#fff; }
+    .meta { margin-top:8px; font-size:12px; color:#475569; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PreProduct UX Color Themes</h1>
+    <p>탐색 단계(민트)와 결정 단계(블루) 톤 분리를 반영한 기본 테마 비교</p>
+  </header>
+  <main>
+    <section class="theme" style="--primary:#1557D6; --accent:#1CB39B;">
+      <div class="top">Theme A - Trust Balanced</div>
+      <div class="swatches">
+        <div class="sw" style="background:#1557D6">Primary</div>
+        <div class="sw" style="background:#1CB39B">Accent</div>
+        <div class="sw" style="background:#0EA5E9">Info</div>
+        <div class="sw" style="background:#22C55E">Success</div>
+        <div class="sw" style="background:#F59E0B">Warning</div>
+        <div class="sw" style="background:#EF4444">Error</div>
+      </div>
+      <div class="demo">
+        <div class="card"><b>충분 기준 충족</b><div class="meta">근거 2개 / 리스크 중간 / 가역성 높음</div></div>
+      </div>
+    </section>
+
+    <section class="theme" style="--primary:#1D4ED8; --accent:#14B8A6;">
+      <div class="top">Theme B - Explore Energetic</div>
+      <div class="swatches">
+        <div class="sw" style="background:#1D4ED8">Primary</div>
+        <div class="sw" style="background:#14B8A6">Accent</div>
+        <div class="sw" style="background:#06B6D4">Info</div>
+        <div class="sw" style="background:#16A34A">Success</div>
+        <div class="sw" style="background:#F59E0B">Warning</div>
+        <div class="sw" style="background:#DC2626">Error</div>
+      </div>
+      <div class="demo">
+        <div class="card"><b>다음 탐색 추천</b><div class="meta">기준 변경 후 1초 내 재정렬 피드백</div></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

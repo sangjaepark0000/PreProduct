@@ -1,0 +1,49 @@
+# Best-Effort Diff Output (NO_VCS)
+
+baseline_commit: NO_VCS
+spec_file: _bmad-output/implementation-artifacts/spec-ir-needs-work-incremental.md
+
+## Changed Files
+- _bmad-output/planning-artifacts/epics.md
+- _bmad-output/planning-artifacts/prd.md
+- _bmad-output/planning-artifacts/architecture.md
+- _bmad-output/planning-artifacts/ux-design-specification-2026-04-07-revision.md
+- _bmad-output/planning-artifacts/implementation-readiness-report-2026-04-07.md
+- _bmad-output/implementation-artifacts/spec-ir-needs-work-incremental.md
+
+## Summary of Changes
+
+### 1) epics.md
+- Story 1.1 persona/value를 사용자 중심으로 변경.
+- Story 1.1에 seed/fixture 기준 및 부팅/검증 실패 복구 AC 추가.
+- Story 2.1에 파일 오류 분리, AI timeout/failure 시 1탭 fallback, idempotency 중복 처리 AC 추가.
+- Story 2.3에 수동 가격 검증 실패, 권한 오류(세션 만료), 단일 eventId 보장 AC 추가.
+- Story 3.2에서 FR25 제거(FR19, FR20만 유지), 하한 위반 skip/동시 실행 단일 처리/발생 책임만 수행 AC 추가.
+- Story 4.1에 누락률<2%, 중복률<1%, 스키마 불일치 격리+경보+비차단, FR25 RACI AC 추가.
+
+### 2) prd.md
+- FR25 항목에 책임 분리 주석 추가:
+  - Epic 3: 이벤트 발생 책임
+  - Epic 4: 수집 무결성/중복·누락 가드레일/경보 책임
+- 중복률 1% 이상 또는 누락률 2% 이상 위반 시 Hold 우선 적용 규칙 추가.
+
+### 3) architecture.md
+- Event Contract 섹션에 FR25 RACI 추가:
+  - Epic 3: `pricing.auto_adjust.applied.v1` 발생 책임
+  - Epic 4: 관측/무결성/경보 책임
+- Quality Gates 섹션에 FR25 경보 소유(Epic 4) 및 Hold 연계 문구 추가.
+
+### 4) ux-design-specification-2026-04-07-revision.md
+- `Policy & Non-blocking Validation Checklist` 섹션 추가.
+- 화면별 3클릭 접근 점검 체크 항목 추가.
+- 정책 표시 계층 실패 시 비차단 동작 점검 항목 추가.
+- Mandatory E2E 회귀 케이스 4종(E2E-POL-01~04) 추가.
+
+### 5) implementation-readiness-report-2026-04-07.md
+- `Remediation Tracking Update (2026-04-07)` 섹션 추가.
+- 3개 권고사항(AC 보강/FR25 분리/정책 검증 구체화) 완료 체크 반영.
+
+### 6) spec-ir-needs-work-incremental.md
+- baseline_commit: NO_VCS
+- status: ready-for-dev -> in-progress -> in-review
+- Execution 체크박스 5개 모두 [x] 처리.
