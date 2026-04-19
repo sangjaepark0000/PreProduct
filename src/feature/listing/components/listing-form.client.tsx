@@ -6,7 +6,13 @@ import {
   Box,
   Chip,
   Container,
+  FormControl,
+  FormControlLabel,
+  FormHelperText,
+  FormLabel,
   Paper,
+  Radio,
+  RadioGroup,
   Stack,
   TextField,
   Typography
@@ -16,6 +22,7 @@ import {
   initialCreateListingFormState,
   type CreateListingFormState
 } from "@/feature/listing/actions/create-listing.action";
+import { prelistingStatusValues } from "@/domain/prelisting-status/prelisting-status";
 import { ListingSubmitBar } from "@/feature/listing/components/listing-submit-bar.client";
 
 type ListingFormProps = {
@@ -44,7 +51,7 @@ export function ListingForm({ action }: ListingFormProps) {
         >
           <Stack spacing={1.5}>
             <Chip
-              label="Story 1.1 기본 등록"
+              label="Story 1.2 상태 저장"
               color="secondary"
               sx={{ alignSelf: "flex-start", fontWeight: 700 }}
             />
@@ -52,8 +59,8 @@ export function ListingForm({ action }: ListingFormProps) {
               설명 없이 바로 시작되는 중고 매물 등록
             </Typography>
             <Typography color="text.secondary" variant="body1">
-              제목, 카테고리, 핵심 스펙, 가격만 입력하면 저장 후 바로 상세 화면으로
-              이동합니다.
+              제목, 카테고리, 핵심 스펙, 가격과 상태만 고르면 저장 후 바로 상세
+              화면으로 이동합니다.
             </Typography>
           </Stack>
 
@@ -123,6 +130,28 @@ export function ListingForm({ action }: ListingFormProps) {
                   }
                 }}
               />
+
+              <FormControl error={Boolean(state.fieldErrors.status)}>
+                <FormLabel id="listing-status-label">현재 상태</FormLabel>
+                <RadioGroup
+                  row
+                  aria-labelledby="listing-status-label"
+                  name="status"
+                  defaultValue={state.values.status}
+                >
+                  {prelistingStatusValues.map((status) => (
+                    <FormControlLabel
+                      key={status}
+                      value={status}
+                      control={<Radio />}
+                      label={status}
+                    />
+                  ))}
+                </RadioGroup>
+                {state.fieldErrors.status ? (
+                  <FormHelperText>{state.fieldErrors.status}</FormHelperText>
+                ) : null}
+              </FormControl>
             </Stack>
           </Paper>
 

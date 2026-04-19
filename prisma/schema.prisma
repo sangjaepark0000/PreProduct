@@ -12,6 +12,8 @@ model Listing {
   category          String
   keySpecifications String[]
   priceKrw          Int
+  initialStatus     String   @default("판매중")
+  currentStatus     String   @default("판매중")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

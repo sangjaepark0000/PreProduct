@@ -1,9 +1,8 @@
 import { z } from "zod";
 
 export const prelistingStatusValues = [
-  "draft",
-  "ready_for_review",
-  "needs_input"
+  "판매중",
+  "프리리스팅"
 ] as const;
 
 export const prelistingStatusSchema = z.enum(prelistingStatusValues);

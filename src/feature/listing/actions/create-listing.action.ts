@@ -2,12 +2,17 @@ import { ZodError } from "zod";
 
 import { RetryableCreateListingError } from "@/domain/listing/listing.errors";
 import { createListingInputSchema } from "@/domain/listing/listing";
+import {
+  prelistingStatusSchema,
+  prelistingStatusValues
+} from "@/domain/prelisting-status/prelisting-status";
 
 export type CreateListingFormValues = {
   title: string;
   category: string;
   keySpecificationsText: string;
   priceKrw: string;
+  status: string;
 };
 
 export type CreateListingFieldErrors = Partial<
@@ -38,7 +43,8 @@ const emptyFormValues: CreateListingFormValues = {
   title: "",
   category: "",
   keySpecificationsText: "",
-  priceKrw: ""
+  priceKrw: "",
+  status: prelistingStatusValues[0]
 };
 
 export const initialCreateListingFormState: CreateListingFormState = {
@@ -59,7 +65,8 @@ function extractFormValues(formData: FormData): CreateListingFormValues {
     title: readTextField(formData, "title"),
     category: readTextField(formData, "category"),
     keySpecificationsText: readTextField(formData, "keySpecificationsText"),
-    priceKrw: readTextField(formData, "priceKrw")
+    priceKrw: readTextField(formData, "priceKrw"),
+    status: readTextField(formData, "status")
   };
 }
 
@@ -106,6 +113,11 @@ function mapZodErrorToFieldErrors(error: ZodError): CreateListingFieldErrors {
 
     if (field === "priceKrw") {
       fieldErrors.priceKrw = issue.message;
+      return;
+    }
+
+    if (field === "status") {
+      fieldErrors.status = issue.message;
     }
   });
 
@@ -124,9 +136,14 @@ export async function handleCreateListingSubmission(
       title: values.title,
       category: values.category,
       keySpecifications: splitKeySpecifications(values.keySpecificationsText),
-      priceKrw: values.priceKrw
+      priceKrw: values.priceKrw,
+      status: prelistingStatusSchema.parse(values.status)
     });
-    const listing = await dependencies.createListing(parsedInput);
+    const listing = await dependencies.createListing({
+      ...parsedInput,
+      initialStatus: parsedInput.status,
+      currentStatus: parsedInput.status
+    });
 
     return {
       status: "success",

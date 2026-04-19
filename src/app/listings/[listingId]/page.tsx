@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import {
   Box,
@@ -10,7 +11,15 @@ import {
 } from "@mui/material";
 
 import { listingIdSchema } from "@/domain/listing/listing";
-import { getListingById } from "@/domain/listing/listing.service";
+import {
+  getListingById,
+  updateListingStatus
+} from "@/domain/listing/listing.service";
+import {
+  handleUpdateListingStatusSubmission,
+  type UpdateListingStatusFormState
+} from "@/feature/listing/actions/update-listing-status.action";
+import { ListingStatusForm } from "@/feature/listing/components/listing-status-form.client";
 import { getListingRepository } from "@/infra/listing/listing.repository";
 
 type ListingDetailPageProps = {
@@ -59,6 +68,36 @@ export default async function ListingDetailPage({
     notFound();
   }
 
+  const resolvedListing = listing;
+
+  async function updateListingStatusFormAction(
+    previousState: UpdateListingStatusFormState,
+    formData: FormData
+  ): Promise<UpdateListingStatusFormState> {
+    "use server";
+
+    const result = await handleUpdateListingStatusSubmission(
+      {
+        updateListingStatus: async (input) =>
+          updateListingStatus(
+            {
+              listingRepository: getListingRepository()
+            },
+            input
+          )
+      },
+      resolvedListing.id,
+      previousState,
+      formData
+    );
+
+    if (result.submissionStatus === "success") {
+      revalidatePath(`/listings/${resolvedListing.id}`);
+    }
+
+    return result;
+  }
+
   return (
     <Box sx={{ py: { xs: 4, md: 8 } }}>
       <Container maxWidth="md">
@@ -74,7 +113,7 @@ export default async function ListingDetailPage({
                 variant="h2"
                 data-testid="listing-detail-title"
               >
-                {listing.title}
+                {resolvedListing.title}
               </Typography>
               <Typography color="text.secondary">
                 저장이 완료되었습니다. 같은 화면에서 다시 등록하려면 새 등록 버튼을
@@ -94,10 +133,18 @@ export default async function ListingDetailPage({
             }}
           >
             <Stack spacing={2.5}>
+              <ListingStatusForm
+                action={updateListingStatusFormAction}
+                currentStatus={resolvedListing.currentStatus}
+                updatedAt={resolvedListing.updatedAt}
+              />
+
+              <Divider />
+
               <Stack spacing={0.75}>
                 <Typography variant="overline">카테고리</Typography>
                 <Typography data-testid="listing-detail-category">
-                  {listing.category}
+                  {resolvedListing.category}
                 </Typography>
               </Stack>
 
@@ -106,7 +153,7 @@ export default async function ListingDetailPage({
               <Stack spacing={0.75}>
                 <Typography variant="overline">가격</Typography>
                 <Typography data-testid="listing-detail-price">
-                  {priceFormatter.format(listing.priceKrw)}원
+                  {priceFormatter.format(resolvedListing.priceKrw)}원
                 </Typography>
               </Stack>
 
@@ -115,7 +162,7 @@ export default async function ListingDetailPage({
               <Stack spacing={1}>
                 <Typography variant="overline">핵심 스펙</Typography>
                 <Stack component="ul" spacing={1} sx={{ m: 0, pl: 3 }}>
-                  {buildSpecificationItems(listing.keySpecifications).map((item) => (
+                  {buildSpecificationItems(resolvedListing.keySpecifications).map((item) => (
                     <Typography
                       key={item.key}
                       component="li"
@@ -129,14 +176,9 @@ export default async function ListingDetailPage({
 
               <Divider />
 
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                sx={{ color: "text.secondary" }}
-              >
-                <Typography>생성: {listing.createdAt}</Typography>
-                <Typography>수정: {listing.updatedAt}</Typography>
-              </Stack>
+              <Typography sx={{ color: "text.secondary" }}>
+                생성: {resolvedListing.createdAt}
+              </Typography>
             </Stack>
           </Paper>
         </Stack>
