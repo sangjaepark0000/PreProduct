@@ -1,0 +1,9 @@
+{
+  "appShell": {
+    "responseStartMs": 800,
+    "domContentLoadedMs": 1800,
+    "loadMs": 2800,
+    "htmlTransferBytes": 45000,
+    "totalRequests": 20
+  }
+}
