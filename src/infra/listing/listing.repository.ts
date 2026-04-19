@@ -36,6 +36,11 @@ type ListingPersistenceClient = {
       };
     }) => Promise<ListingRecord>;
     findUnique: (args: { where: { id: string } }) => Promise<ListingRecord | null>;
+    findMany: (args?: {
+      orderBy?: {
+        createdAt: "asc" | "desc";
+      };
+    }) => Promise<ListingRecord[]>;
     update: (args: {
       where: {
         id: string;
@@ -106,6 +111,15 @@ export function createListingRepository(
       });
 
       return storedListing ? toDomainListing(storedListing) : null;
+    },
+    async listAll() {
+      const storedListings = await prismaClient.listing.findMany({
+        orderBy: {
+          createdAt: "asc"
+        }
+      });
+
+      return storedListings.map(toDomainListing);
     },
     async updateStatus(listingId, status) {
       const parsedListingId = listingSchema.shape.id.parse(listingId);

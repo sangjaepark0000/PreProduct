@@ -12,6 +12,7 @@ import {
 export type ListingRepository = {
   create: (listing: Listing) => Promise<Listing>;
   findById: (listingId: ListingId) => Promise<Listing | null>;
+  listAll: () => Promise<Listing[]>;
   updateStatus: (
     listingId: ListingId,
     status: Listing["currentStatus"]
