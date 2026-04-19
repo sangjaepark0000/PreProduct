@@ -8,12 +8,14 @@ import { createListingRepository } from "@/infra/listing/listing.repository";
 
 const mockCreate = jest.fn();
 const mockFindUnique = jest.fn();
+const mockFindMany = jest.fn();
 const mockUpdate = jest.fn();
 
 const mockPrismaClient = {
   listing: {
     create: mockCreate,
     findUnique: mockFindUnique,
+    findMany: mockFindMany,
     update: mockUpdate,
     deleteMany: jest.fn()
   }
@@ -84,6 +86,36 @@ describe("listing.repository", () => {
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: {
         id: "ef8cb604-d2e8-46fd-859c-a9c8187bbdca"
+      }
+    });
+  });
+
+  it("lists all stored listings for observability queries", async () => {
+    const repository = createListingRepository(mockPrismaClient);
+
+    mockFindMany.mockResolvedValueOnce([
+      {
+        id: "916df0fd-cc73-48cb-84e9-837c9748c968",
+        title: "맥북 프로 14",
+        category: "노트북",
+        keySpecifications: ["M4 Pro", "24GB RAM"],
+        priceKrw: 2850000,
+        initialStatus: "판매중",
+        currentStatus: "판매중",
+        createdAt: new Date("2026-04-19T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-19T00:00:00.000Z")
+      }
+    ]);
+
+    await expect(repository.listAll()).resolves.toMatchObject([
+      {
+        id: "916df0fd-cc73-48cb-84e9-837c9748c968",
+        initialStatus: "판매중"
+      }
+    ]);
+    expect(mockFindMany).toHaveBeenCalledWith({
+      orderBy: {
+        createdAt: "asc"
       }
     });
   });

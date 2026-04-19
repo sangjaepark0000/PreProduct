@@ -48,5 +48,5 @@ development_status:
   1-1-기본-매물-등록: review
   1-2-프리리스팅-상태-저장-및-수정: backlog
   1-3-필수-필드-검증: review
-  1-4-최소-검증-관측: backlog
+  1-4-최소-검증-관측: review
   epic-1-retrospective: optional

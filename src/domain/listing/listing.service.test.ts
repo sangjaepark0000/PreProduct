@@ -17,6 +17,7 @@ describe("listing.service", () => {
         return record;
       },
       findById: async () => null,
+      listAll: async () => [],
       updateStatus: async () => null
     };
 
@@ -46,6 +47,7 @@ describe("listing.service", () => {
     const repository: ListingRepository = {
       create: async (record) => record,
       findById: async () => null,
+      listAll: async () => [],
       updateStatus: async () => null
     };
 
@@ -61,6 +63,7 @@ describe("listing.service", () => {
     const repository: ListingRepository = {
       create: async (record) => record,
       findById: async () => null,
+      listAll: async () => [],
       updateStatus: async (listingId, status) => ({
         id: listingId,
         title: "캐논 EOS R50",
