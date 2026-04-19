@@ -6,18 +6,28 @@ export const listingIdSchema = z.uuid();
 
 export type ListingId = z.infer<typeof listingIdSchema>;
 
-const requiredTextSchema = z
+const titleSchema = z
   .string()
   .trim()
-  .min(1, "필수 값을 입력해 주세요.");
+  .min(1, "제목을 입력해 주세요.");
+
+const categorySchema = z
+  .string()
+  .trim()
+  .min(1, "카테고리를 입력해 주세요.");
+
+const keySpecificationSchema = z
+  .string()
+  .trim()
+  .min(1, "핵심 스펙을 입력해 주세요.");
 
 export const createListingInputSchema = z.object({
-  title: requiredTextSchema,
-  category: requiredTextSchema,
+  title: titleSchema,
+  category: categorySchema,
   keySpecifications: z
-    .array(requiredTextSchema)
+    .array(keySpecificationSchema)
     .min(1, "핵심 스펙을 1개 이상 입력해 주세요."),
-  priceKrw: z.coerce.number().int().positive("가격은 1원 이상이어야 합니다."),
+  priceKrw: z.coerce.number().int().positive("가격은 1원 이상 입력해 주세요."),
   status: prelistingStatusSchema
 });
 
@@ -28,10 +38,10 @@ export const updateListingStatusInputSchema = z.object({
 
 export const listingSchema = z.object({
   id: listingIdSchema,
-  title: requiredTextSchema,
-  category: requiredTextSchema,
+  title: titleSchema,
+  category: categorySchema,
   keySpecifications: z
-    .array(requiredTextSchema)
+    .array(keySpecificationSchema)
     .min(1, "핵심 스펙을 1개 이상 입력해 주세요."),
   priceKrw: z.number().int().positive(),
   initialStatus: prelistingStatusSchema,

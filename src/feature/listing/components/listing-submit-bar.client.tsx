@@ -4,9 +4,19 @@ import { Button, Paper, Stack, Typography } from "@mui/material";
 
 type ListingSubmitBarProps = {
   pending: boolean;
+  hasErrors: boolean;
+  errorFieldLabels: string[];
 };
 
-export function ListingSubmitBar({ pending }: ListingSubmitBarProps) {
+export function ListingSubmitBar({
+  pending,
+  hasErrors,
+  errorFieldLabels
+}: ListingSubmitBarProps) {
+  const guidanceMessage = hasErrors
+    ? `${errorFieldLabels.join(", ") || "입력 항목"}을 수정한 뒤 다시 등록해 주세요.`
+    : "핵심 스펙은 한 줄에 한 개씩 입력하면 됩니다.";
+
   return (
     <Paper
       elevation={0}
@@ -24,7 +34,7 @@ export function ListingSubmitBar({ pending }: ListingSubmitBarProps) {
         sx={{ alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between" }}
       >
         <Typography color="text.secondary" variant="body2">
-          핵심 스펙은 한 줄에 한 개씩 입력하면 됩니다.
+          {guidanceMessage}
         </Typography>
         <Button
           type="submit"

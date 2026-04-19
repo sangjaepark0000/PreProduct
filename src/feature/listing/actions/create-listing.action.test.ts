@@ -45,6 +45,8 @@ describe("handleCreateListingSubmission", () => {
       status: "판매중"
     });
     expect(result.fieldErrors.keySpecificationsText).toBeDefined();
+    expect(result.errorFieldLabels).toEqual(["핵심 스펙"]);
+    expect(result.formError).toContain("핵심 스펙");
   });
 
   it("returns a recoverable form error when storage fails", async () => {
@@ -72,6 +74,7 @@ describe("handleCreateListingSubmission", () => {
     expect(result.formError).toContain("저장");
     expect(result.values.keySpecificationsText).toBe("A17 Pro\n256GB");
     expect(result.values.status).toBe("판매중");
+    expect(result.errorFieldLabels).toEqual([]);
   });
 
   it("returns the created listing id on success", async () => {
@@ -115,5 +118,62 @@ describe("handleCreateListingSubmission", () => {
         })
       )
     ).rejects.toThrow("unexpected invariant break");
+  });
+
+  it("reports multiple missing required fields with a recovery summary", async () => {
+    const result = await handleCreateListingSubmission(
+      {
+        createListing: async () => {
+          throw new Error("should not be called");
+        }
+      },
+      initialCreateListingFormState,
+      buildFormData({
+        title: "",
+        category: "",
+        keySpecificationsText: "",
+        priceKrw: "",
+        status: "판매중"
+      })
+    );
+
+    if (result.status === "success") {
+      throw new Error("expected validation failure state");
+    }
+
+    expect(result.fieldErrors).toMatchObject({
+      title: "제목을 입력해 주세요.",
+      category: "카테고리를 입력해 주세요.",
+      keySpecificationsText: "핵심 스펙을 1개 이상 입력해 주세요.",
+      priceKrw: "가격을 입력해 주세요."
+    });
+    expect(result.errorFieldLabels).toEqual(["제목", "카테고리", "핵심 스펙", "가격"]);
+    expect(result.formError).toContain("제목, 카테고리, 핵심 스펙, 가격");
+  });
+
+  it("rejects non-numeric prices before touching persistence", async () => {
+    const createListing = jest.fn();
+
+    const result = await handleCreateListingSubmission(
+      {
+        createListing
+      },
+      initialCreateListingFormState,
+      buildFormData({
+        title: "에어팟 맥스",
+        category: "헤드폰",
+        keySpecificationsText: "라이트닝 케이블 포함",
+        priceKrw: "12만원",
+        status: "판매중"
+      })
+    );
+
+    if (result.status === "success") {
+      throw new Error("expected validation failure state");
+    }
+
+    expect(createListing).not.toHaveBeenCalled();
+    expect(result.fieldErrors.priceKrw).toBe("가격은 숫자만 입력해 주세요.");
+    expect(result.formError).toContain("가격");
   });
 });

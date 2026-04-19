@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import {
   Alert,
+  AlertTitle,
   Box,
   Chip,
   Container,
@@ -51,7 +52,7 @@ export function ListingForm({ action }: ListingFormProps) {
         >
           <Stack spacing={1.5}>
             <Chip
-              label="Story 1.2 상태 저장"
+              label="Story 1.3 필수 필드 검증"
               color="secondary"
               sx={{ alignSelf: "flex-start", fontWeight: 700 }}
             />
@@ -74,7 +75,32 @@ export function ListingForm({ action }: ListingFormProps) {
             <Stack spacing={2.5}>
               {state.formError ? (
                 <Alert severity="error" aria-live="polite" aria-atomic="true">
-                  {state.formError}
+                  <AlertTitle>
+                    {state.errorFieldLabels.length > 0
+                      ? "입력 내용을 먼저 확인해 주세요."
+                      : "저장에 실패했습니다."}
+                  </AlertTitle>
+                  <Stack spacing={1}>
+                    <Typography variant="body2">{state.formError}</Typography>
+                    {state.errorFieldLabels.length > 0 ? (
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        useFlexGap
+                        sx={{ flexWrap: "wrap" }}
+                      >
+                        {state.errorFieldLabels.map((label) => (
+                          <Chip
+                            key={label}
+                            label={label}
+                            color="error"
+                            variant="outlined"
+                            size="small"
+                          />
+                        ))}
+                      </Stack>
+                    ) : null}
+                  </Stack>
                 </Alert>
               ) : null}
 
@@ -155,7 +181,11 @@ export function ListingForm({ action }: ListingFormProps) {
             </Stack>
           </Paper>
 
-          <ListingSubmitBar pending={pending} />
+          <ListingSubmitBar
+            pending={pending}
+            hasErrors={state.status === "error"}
+            errorFieldLabels={state.errorFieldLabels}
+          />
         </Stack>
       </Container>
     </Box>
