@@ -27,7 +27,8 @@ describe("handleCreateListingSubmission", () => {
         title: "닌텐도 스위치 OLED",
         category: "게임기",
         keySpecificationsText: "",
-        priceKrw: "420000"
+        priceKrw: "420000",
+        status: "판매중"
       })
     );
 
@@ -40,7 +41,8 @@ describe("handleCreateListingSubmission", () => {
       title: "닌텐도 스위치 OLED",
       category: "게임기",
       keySpecificationsText: "",
-      priceKrw: "420000"
+      priceKrw: "420000",
+      status: "판매중"
     });
     expect(result.fieldErrors.keySpecificationsText).toBeDefined();
   });
@@ -57,7 +59,8 @@ describe("handleCreateListingSubmission", () => {
         title: "아이패드 미니",
         category: "태블릿",
         keySpecificationsText: "A17 Pro\n256GB",
-        priceKrw: "700000"
+        priceKrw: "700000",
+        status: "판매중"
       })
     );
 
@@ -68,6 +71,7 @@ describe("handleCreateListingSubmission", () => {
     expect(result.status).toBe("error");
     expect(result.formError).toContain("저장");
     expect(result.values.keySpecificationsText).toBe("A17 Pro\n256GB");
+    expect(result.values.status).toBe("판매중");
   });
 
   it("returns the created listing id on success", async () => {
@@ -82,7 +86,8 @@ describe("handleCreateListingSubmission", () => {
         title: "플레이스테이션 5",
         category: "콘솔",
         keySpecificationsText: "디스크 에디션\n듀얼센스 포함",
-        priceKrw: "520000"
+        priceKrw: "520000",
+        status: "프리리스팅"
       })
     );
 
@@ -105,7 +110,8 @@ describe("handleCreateListingSubmission", () => {
           title: "플레이스테이션 5",
           category: "콘솔",
           keySpecificationsText: "디스크 에디션\n듀얼센스 포함",
-          priceKrw: "520000"
+          priceKrw: "520000",
+          status: "판매중"
         })
       )
     ).rejects.toThrow("unexpected invariant break");

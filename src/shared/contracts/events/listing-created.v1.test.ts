@@ -9,7 +9,7 @@ describe("listingCreatedV1Schema", () => {
       schemaVersion: "1.0.0",
       payload: {
         listingId: "0f5ce5d8-e04b-4e13-9f0d-f550ca3a1cb5",
-        initialStatus: "draft"
+        initialStatus: "판매중"
       }
     };
 

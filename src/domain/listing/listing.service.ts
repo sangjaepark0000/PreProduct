@@ -4,12 +4,18 @@ import {
   listingSchema,
   type CreateListingInput,
   type Listing,
-  type ListingId
+  type ListingId,
+  updateListingStatusInputSchema,
+  type UpdateListingStatusInput
 } from "@/domain/listing/listing";
 
 export type ListingRepository = {
   create: (listing: Listing) => Promise<Listing>;
   findById: (listingId: ListingId) => Promise<Listing | null>;
+  updateStatus: (
+    listingId: ListingId,
+    status: Listing["currentStatus"]
+  ) => Promise<Listing | null>;
 };
 
 type ListingServiceDependencies = {
@@ -29,6 +35,8 @@ export async function createListing(
     category: input.category,
     keySpecifications: input.keySpecifications,
     priceKrw: input.priceKrw,
+    initialStatus: input.status,
+    currentStatus: input.status,
     createdAt: timestamp,
     updatedAt: timestamp
   });
@@ -45,4 +53,13 @@ export async function getListingById(
   return listingRepository.findById(listingId);
 }
 
-export type { CreateListingInput, Listing };
+export async function updateListingStatus(
+  { listingRepository }: ListingServiceDependencies,
+  rawInput: unknown
+): Promise<Listing | null> {
+  const input = updateListingStatusInputSchema.parse(rawInput);
+
+  return listingRepository.updateStatus(input.listingId, input.status);
+}
+
+export type { CreateListingInput, Listing, UpdateListingStatusInput };

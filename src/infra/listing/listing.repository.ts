@@ -1,6 +1,9 @@
 import { Prisma } from "@prisma/client";
 
-import { RetryableCreateListingError } from "@/domain/listing/listing.errors";
+import {
+  RetryableCreateListingError,
+  RetryableUpdateListingStatusError
+} from "@/domain/listing/listing.errors";
 import { listingSchema, type Listing } from "@/domain/listing/listing";
 import { type ListingRepository } from "@/domain/listing/listing.service";
 import { getPrismaClient } from "@/infra/prisma/prisma.client";
@@ -11,6 +14,8 @@ type ListingRecord = {
   category: string;
   keySpecifications: string[];
   priceKrw: number;
+  initialStatus: string;
+  currentStatus: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -24,11 +29,21 @@ type ListingPersistenceClient = {
         category: string;
         keySpecifications: string[];
         priceKrw: number;
+        initialStatus: string;
+        currentStatus: string;
         createdAt: Date;
         updatedAt: Date;
       };
     }) => Promise<ListingRecord>;
     findUnique: (args: { where: { id: string } }) => Promise<ListingRecord | null>;
+    update: (args: {
+      where: {
+        id: string;
+      };
+      data: {
+        currentStatus: string;
+      };
+    }) => Promise<ListingRecord>;
     deleteMany: () => Promise<unknown>;
   };
 };
@@ -64,6 +79,8 @@ export function createListingRepository(
             category: parsedListing.category,
             keySpecifications: parsedListing.keySpecifications,
             priceKrw: parsedListing.priceKrw,
+            initialStatus: parsedListing.initialStatus,
+            currentStatus: parsedListing.currentStatus,
             createdAt: new Date(parsedListing.createdAt),
             updatedAt: new Date(parsedListing.updatedAt)
           }
@@ -89,6 +106,39 @@ export function createListingRepository(
       });
 
       return storedListing ? toDomainListing(storedListing) : null;
+    },
+    async updateStatus(listingId, status) {
+      const parsedListingId = listingSchema.shape.id.parse(listingId);
+      const parsedStatus = listingSchema.shape.currentStatus.parse(status);
+      let storedListing: ListingRecord;
+
+      try {
+        storedListing = await prismaClient.listing.update({
+          where: {
+            id: parsedListingId
+          },
+          data: {
+            currentStatus: parsedStatus
+          }
+        });
+      } catch (error: unknown) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2025"
+        ) {
+          return null;
+        }
+
+        if (isRetryableListingWriteError(error)) {
+          throw new RetryableUpdateListingStatusError(undefined, {
+            cause: error
+          });
+        }
+
+        throw error;
+      }
+
+      return toDomainListing(storedListing);
     }
   };
 }
