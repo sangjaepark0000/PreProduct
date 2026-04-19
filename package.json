@@ -1,0 +1,60 @@
+{
+  "name": "preproduct",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=24.14.1 <25"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3000",
+    "lint": "eslint src tests/contracts next.config.ts jest.setup.ts playwright.config.ts eslint.config.mjs scripts/check-perf-budget.mjs --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "unit": "jest --config jest.config.mjs --coverage --testPathIgnorePatterns tests/contracts tests/e2e _bmad-output/test-artifacts/red-phase",
+    "contract": "jest --config jest.config.mjs --runTestsByPath tests/contracts/listing-created.v1.contract.test.ts",
+    "perf-budget": "node scripts/check-perf-budget.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:epic-2": "playwright test _bmad-output/test-artifacts/red-phase/epic-2-p0/tests",
+    "test:e2e:smoke": "playwright test tests/e2e/framework-smoke.spec.ts --project=chromium",
+    "test:ci": "playwright test --project=chromium --reporter=blob",
+    "test:changed": "bash scripts/test-changed.sh",
+    "test:burn-in": "bash scripts/burn-in.sh",
+    "test:report:merge": "playwright merge-reports --config=playwright.merge.config.ts ./all-blob-reports"
+  },
+  "dependencies": {
+    "@emotion/cache": "11.14.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/icons-material": "9.0.0",
+    "@mui/material": "9.0.0",
+    "@prisma/adapter-pg": "7.7.0",
+    "@prisma/client": "7.7.0",
+    "next": "16.2.4",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.3.5",
+    "@faker-js/faker": "10.4.0",
+    "@playwright/test": "1.59.1",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.3.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@typescript-eslint/eslint-plugin": "8.58.2",
+    "@typescript-eslint/parser": "8.58.2",
+    "dotenv": "17.4.2",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.4",
+    "eslint-plugin-import": "2.32.0",
+    "jest": "30.3.0",
+    "prisma": "7.7.0",
+    "typescript": "6.0.3"
+  }
+}
