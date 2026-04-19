@@ -23,6 +23,7 @@ export type CreateListingFormState = {
   status: "idle" | "error";
   values: CreateListingFormValues;
   fieldErrors: CreateListingFieldErrors;
+  errorFieldLabels: string[];
   formError: string | null;
 };
 
@@ -51,6 +52,7 @@ export const initialCreateListingFormState: CreateListingFormState = {
   status: "idle",
   values: emptyFormValues,
   fieldErrors: {},
+  errorFieldLabels: [],
   formError: null
 };
 
@@ -80,17 +82,30 @@ function splitKeySpecifications(rawText: string): string[] {
 function toFormErrorState(
   values: CreateListingFormValues,
   fieldErrors: CreateListingFieldErrors = {},
+  errorFieldLabels: string[] = [],
   formError: string | null = null
 ): CreateListingFormState {
   return {
     status: "error",
     values,
     fieldErrors,
+    errorFieldLabels,
     formError
   };
 }
 
-function mapZodErrorToFieldErrors(error: ZodError): CreateListingFieldErrors {
+const fieldLabelMap: Record<keyof CreateListingFormValues, string> = {
+  title: "제목",
+  category: "카테고리",
+  keySpecificationsText: "핵심 스펙",
+  priceKrw: "가격",
+  status: "상태"
+};
+
+function mapZodErrorToFieldErrors(
+  error: ZodError,
+  values: CreateListingFormValues
+): CreateListingFieldErrors {
   const fieldErrors: CreateListingFieldErrors = {};
 
   error.issues.forEach((issue) => {
@@ -112,6 +127,18 @@ function mapZodErrorToFieldErrors(error: ZodError): CreateListingFieldErrors {
     }
 
     if (field === "priceKrw") {
+      const trimmedPrice = values.priceKrw.trim();
+
+      if (trimmedPrice.length === 0) {
+        fieldErrors.priceKrw = "가격을 입력해 주세요.";
+        return;
+      }
+
+      if (!/^\d+$/u.test(trimmedPrice)) {
+        fieldErrors.priceKrw = "가격은 숫자만 입력해 주세요.";
+        return;
+      }
+
       fieldErrors.priceKrw = issue.message;
       return;
     }
@@ -122,6 +149,22 @@ function mapZodErrorToFieldErrors(error: ZodError): CreateListingFieldErrors {
   });
 
   return fieldErrors;
+}
+
+function buildValidationErrorFieldLabels(
+  fieldErrors: CreateListingFieldErrors
+): string[] {
+  return (Object.keys(fieldErrors) as Array<keyof CreateListingFieldErrors>)
+    .map((field) => (field ? fieldLabelMap[field] : null))
+    .filter((label): label is string => Boolean(label));
+}
+
+function buildValidationSummary(errorFieldLabels: string[]): string {
+  if (errorFieldLabels.length === 0) {
+    return "입력 내용을 확인한 뒤 다시 등록해 주세요.";
+  }
+
+  return `입력이 필요한 항목이 있습니다. ${errorFieldLabels.join(", ")}을 확인한 뒤 다시 등록해 주세요.`;
 }
 
 export async function handleCreateListingSubmission(
@@ -151,13 +194,22 @@ export async function handleCreateListingSubmission(
     };
   } catch (error) {
     if (error instanceof ZodError) {
-      return toFormErrorState(values, mapZodErrorToFieldErrors(error));
+      const fieldErrors = mapZodErrorToFieldErrors(error, values);
+      const errorFieldLabels = buildValidationErrorFieldLabels(fieldErrors);
+
+      return toFormErrorState(
+        values,
+        fieldErrors,
+        errorFieldLabels,
+        buildValidationSummary(errorFieldLabels)
+      );
     }
 
     if (error instanceof RetryableCreateListingError) {
       return toFormErrorState(
         values,
         {},
+        [],
         "저장에 실패했습니다. 입력 내용은 유지됐으니 다시 시도해 주세요."
       );
     }

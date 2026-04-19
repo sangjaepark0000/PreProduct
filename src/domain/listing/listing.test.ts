@@ -25,6 +25,18 @@ describe("createListingInputSchema", () => {
     });
   });
 
+  it("rejects missing title with a field-specific message", () => {
+    expect(() =>
+      createListingInputSchema.parse({
+        title: "   ",
+        category: "노트북",
+        keySpecifications: ["16GB RAM"],
+        priceKrw: 1850000,
+        status: "판매중"
+      })
+    ).toThrow("제목을 입력해 주세요.");
+  });
+
   it("rejects payloads without at least one key specification", () => {
     expect.assertions(2);
 
