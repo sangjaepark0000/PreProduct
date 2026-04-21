@@ -1,6 +1,6 @@
 # Story 2.1: PhotoUploader 기반 이미지 업로드와 AI 초안 요청
 
-Status: ready-for-dev
+Status: atdd-done
 
 ## Story
 
@@ -10,7 +10,7 @@ so that 입력 시간을 줄일 수 있다.
 
 **Scope Tag:** Active MVP
 **Story Type:** Feature
-**FR Trace:** FR8, FR9, FR14, FR15
+**FR Trace:** FR8, FR9
 
 ## Acceptance Criteria
 
@@ -35,130 +35,144 @@ so that 입력 시간을 줄일 수 있다.
    **Then** 서버 처리는 1회만 수행된다  
    **And** 사용자에게는 단일 결과 상태만 노출된다.
 
-Coverage: FR8, FR9, FR14, FR15, NFR1, NFR9, NFR10, NFR11, NFR15
+Coverage: FR8, FR9, FR14, FR15, NFR9, NFR10, NFR11, NFR15
 
 ## Tasks / Subtasks
 
-- [ ] 1) PhotoUploader UI 및 단계 상태 연계를 구현한다 (AC: 1)
-- [ ] `preproduct/src/feature/listing/components/photo-uploader.tsx`를 생성해 파일 선택, 업로드 진행 상태(`idle | uploading | requesting | success | error`) 및 AI 요청 트리거를 제공한다.
-- [ ] `preproduct/src/feature/listing/components/photo-uploader.module.css`를 생성해 모바일 320-767 기준 레이아웃과 44x44 터치 타깃을 보장한다.
-- [ ] `preproduct/src/app/(app)/page.tsx` 또는 Story 1.4에서 분리된 스텝 컨테이너에 PhotoUploader를 연결해 업로드 단계 가시성을 확보한다.
-- [ ] 상태 전달은 색상 단독 전달을 금지하고 텍스트/아이콘/`role="status"`를 병행한다.
+- [ ] PhotoUploader UI와 등록 플로우 연결을 구현한다. (AC: 1, 2, 3)
+  - [ ] `src/feature/listing/components/photo-uploader.client.tsx`를 생성하고 파일 선택, 업로드 상태(`idle | validating | requesting | success | error | fallback`)와 AI 요청 트리거를 제공한다.
+  - [ ] 기존 등록 시작점은 `src/app/listings/new/page.tsx`와 `src/feature/listing/components/listing-form.client.tsx`이므로, 이 플로우 안에 PhotoUploader를 연결한다.
+  - [ ] MUI 컴포넌트와 `sx` 패턴을 우선 사용한다. 별도 CSS module은 기존 listing 컴포넌트 패턴과 충돌하므로 필요할 때만 추가한다.
+  - [ ] 상태 전달은 색상 단독 전달을 금지하고 텍스트, 아이콘, `role="status"` 또는 `aria-live`를 병행한다.
+  - [ ] 모바일 320-767px에서 업로드 CTA, 재시도 CTA, fallback CTA는 44x44 이상 터치 타깃을 유지한다.
 
-- [ ] 2) 이미지 업로드/AI 초안 요청 API 계약을 추가한다 (AC: 1, 5)
-- [ ] `preproduct/src/shared/contracts/ai-extraction.ts`를 생성해 요청/응답/오류/상태 enum과 idempotency 키 필드를 정의한다.
-- [ ] `preproduct/src/app/api/ai/extractions/route.ts`를 생성해 `POST /api/ai/extractions` 계약을 구현한다.
-- [ ] 응답 형식은 기존 표준을 유지한다: 성공 `{ data, meta }`, 실패 `{ error: { code, message, details?, requestId } }`.
-- [ ] idempotency 키 중복 요청 시 동일 처리 결과를 반환하도록 도메인 계층에서 보장한다.
+- [ ] 이미지 검증과 AI 초안 요청 계약을 고정한다. (AC: 1, 2, 5)
+  - [ ] `src/shared/contracts/ai-extraction.ts`를 생성해 요청/응답/오류/상태 타입, `idempotencyKey`, `requestVersion`, `clientRequestId`를 정의한다.
+  - [ ] `src/app/api/ai/extractions/route.ts`를 생성해 `POST /api/ai/extractions`를 구현한다. Next.js Route Handler에서 `request.formData()`로 파일과 메타데이터를 읽는다.
+  - [ ] 응답 형식은 아키텍처 규약을 따른다: 성공 `{ data, meta }`, 실패 `{ error: { code, message, details?, requestId } }`.
+  - [ ] MVP에서는 외부 파트너 API 연동을 추가하지 않는다. AI 결과는 provider boundary 뒤의 deterministic fixture/mock으로 시작해 실패, 타임아웃, 지연 응답을 재현 가능하게 만든다.
+  - [ ] idempotency 키 중복 요청은 동일한 terminal result 또는 동일한 in-flight 상태를 반환해야 하며, concurrent duplicate도 계약 테스트로 고정한다.
 
-- [ ] 3) 파일 유효성 검사 및 오류 분류를 도입한다 (AC: 2)
-- [ ] `preproduct/src/domain/ai-extraction/ai-extraction-validator.ts`를 생성해 파일 형식, 용량, 손상(메타데이터/파싱 실패) 검증을 분리한다.
-- [ ] 오류 코드를 최소 `INVALID_FILE_TYPE`, `FILE_TOO_LARGE`, `CORRUPTED_IMAGE`, `AI_TIMEOUT`, `AI_UNAVAILABLE`로 표준화한다.
-- [ ] `preproduct/src/infra/mapper/ai-extraction-mapper.ts`를 생성해 외부 계약(camelCase)과 내부 모델 매핑을 일원화한다.
-- [ ] 사용자 안내 텍스트는 오류 유형별 복구 가이드와 재시도 CTA를 제공한다.
+- [ ] 파일 유효성 검사와 오류 분류를 도메인 경계에 둔다. (AC: 2)
+  - [ ] `src/domain/ai-extraction/ai-extraction-validator.ts`를 생성해 파일 형식, 용량, 손상 이미지 검증을 route와 분리한다.
+  - [ ] 오류 코드는 최소 `INVALID_FILE_TYPE`, `FILE_TOO_LARGE`, `CORRUPTED_IMAGE`, `AI_TIMEOUT`, `AI_UNAVAILABLE`, `DUPLICATE_REQUEST`를 표준화한다.
+  - [ ] `src/infra/ai-extraction/ai-extraction.repository.ts` 또는 동등한 infra 어댑터를 만들 경우, route가 Prisma 또는 저장소 구현을 직접 호출하지 않도록 domain service를 경유한다.
+  - [ ] casing 변환이나 외부 계약 매핑이 필요하면 `src/infra/mapper/ai-extraction-mapper.ts`에만 둔다.
+  - [ ] 사용자 안내 텍스트는 오류 유형별 복구 가이드와 재시도 CTA를 제공한다.
 
-- [ ] 4) fallback/late-response 무시 및 취소 토큰 규칙을 구현한다 (AC: 3, 4)
-- [ ] `preproduct/src/domain/ai-extraction/ai-extraction-service.ts`를 생성해 요청 버전, 취소 토큰, fallback 전환 상태를 관리한다.
-- [ ] 클라이언트는 `AbortController`/timeout 기반으로 요청 취소를 처리하고, fallback 전환 후 도착한 이전 응답은 반영하지 않는다.
-- [ ] 수동 입력 전환 CTA는 1회 탭으로 동작해야 하며, 전환 후 폼 상태(제목/카테고리/핵심스펙)는 사용자 입력 우선으로 유지한다.
-- [ ] fallback 경로 실패가 등록 핵심 플로우를 차단하지 않도록 비차단 복구를 유지한다.
+- [ ] fallback, late-response 무시, 취소 토큰 규칙을 구현한다. (AC: 3, 4)
+  - [ ] `src/domain/ai-extraction/ai-extraction-service.ts`를 생성해 요청 버전, 취소 토큰, fallback 전환 상태, idempotency 처리를 관리한다.
+  - [ ] 클라이언트는 `AbortController` 또는 `AbortSignal.timeout()` 기반으로 요청 취소/타임아웃을 구분한다.
+  - [ ] fallback 전환 후 도착한 이전 응답은 `requestVersion` 또는 `clientRequestId` 불일치로 폐기한다.
+  - [ ] 수동 입력 전환 CTA는 1회 탭으로 동작해야 하며, 전환 후 폼 상태(제목/카테고리/핵심 스펙)는 사용자 입력 우선으로 유지한다.
+  - [ ] fallback 경로 실패나 AI 지연은 기존 등록 저장 플로우를 차단하지 않는다.
 
-- [ ] 5) 테스트를 확장해 업로드/요청/복구/중복 전송 회귀를 고정한다 (AC: 1, 2, 3, 4, 5)
-- [ ] `preproduct/tests/e2e/photo-uploader-flow.spec.ts`를 추가해 정상 업로드, 오류 유형별 재시도, fallback 1탭 전환, late response 무시를 검증한다.
-- [ ] `preproduct/tests/e2e/ai-extraction-api.contract.spec.ts`를 추가해 계약/오류 스키마/idempotency 응답 일관성을 검증한다.
-- [ ] `preproduct/tests/e2e/core-user-flow.spec.ts`에 PhotoUploader 단계 진입 가시성 및 비차단 fallback 회귀를 추가한다.
-- [ ] 아래 게이트를 통과해야 한다: `pnpm --dir preproduct lint`, `pnpm --dir preproduct typecheck`, `pnpm --dir preproduct test:unit`, `pnpm --dir preproduct test:contracts`, `pnpm --dir preproduct test:e2e:ci`.
+- [ ] 테스트를 확장해 업로드, 요청, 복구, 중복 전송 회귀를 고정한다. (AC: 1, 2, 3, 4, 5)
+  - [ ] `tests/e2e/photo-uploader-flow.spec.ts`를 추가해 정상 업로드, 오류 유형별 재시도, fallback 1탭 전환, late response 무시를 검증한다.
+  - [ ] `tests/contracts/ai-extraction-api.contract.test.ts`를 추가해 성공/오류 스키마, idempotency, unknown status rejection을 검증한다.
+  - [ ] 필요하면 route colocated test(`src/app/api/ai/extractions/route.test.ts`)로 formData 파싱과 validator 호출을 빠르게 검증한다.
+  - [ ] 기존 `tests/e2e/listing-registration.spec.ts`, `src/domain/listing/*.test.ts`, `src/infra/listing/listing.repository.test.ts`, `tests/contracts/listing-created.v1.contract.test.ts` 회귀를 유지한다.
+  - [ ] 현재 루트 스크립트 기준 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, `pnpm test:ci`, `pnpm perf-budget`.
 
 ## Dev Notes
 
 ### Epic Context
 
-- Epic 2의 시작 스토리로서, 이후 `ExtractionFieldEditor`(2.2), `PriceSuggestionCard`(2.3), fallback 완주(2.4)의 선행 입력 채널을 제공한다.
-- 본 스토리는 "AI 성공 경로"보다 "실패/지연/중복 요청에서도 플로우 비차단"을 우선 구현해야 한다.
+- Epic 2는 `사진 업로드 -> AI 검토/수정 -> 추천가 확정 -> 요약/등록`의 Active MVP 흐름을 구현한다.
+- Story 2.1은 이후 `ExtractionFieldEditor`(2.2), `PriceSuggestionCard`(2.3), 수동 fallback 완주(2.4)의 선행 입력 채널이다.
+- 본 스토리의 핵심 품질 목표는 AI 성공 자체보다 실패, 지연, 중복 요청에서도 등록 플로우가 비차단으로 유지되는 것이다.
+- PRD는 외부 파트너 API 연동을 MVP 제외/후속 범위로 둔다. 이 스토리에서 실제 외부 AI 벤더 의존성을 추가하지 않는다.
 
 ### Current Codebase Intelligence
 
-- 현재 등록 플로우는 `preproduct/src/app/(app)/page.tsx`에서 `StatusDiagnosticForm` + `ListingDraftForm`으로 구성되어 있다.
-- Listing API 패턴은 `preproduct/src/app/api/listings/drafts/*` + `src/domain/listing/*` + `src/infra/mapper/listing-draft-mapper.ts` 구조다.
-- Decision API 패턴은 `src/app/api/decision-cards/route.ts` + `src/shared/contracts/*` + e2e 계약 테스트로 고정되어 있다.
-- Story 1.4 문서에 PhotoUploader placeholder가 정의되어 있으나 실제 파일은 아직 존재하지 않는다.
+- 앱 코드는 repo-root `src/`에 있다. `preproduct/` 하위 앱 경로는 현재 워크스페이스에 존재하지 않는다.
+- 현재 등록 화면은 `src/app/listings/new/page.tsx`에서 서버 액션을 정의하고 `src/feature/listing/components/listing-form.client.tsx`를 렌더링한다.
+- Listing 저장은 `src/feature/listing/actions/create-listing.action.ts` -> `src/domain/listing/listing.service.ts` -> `src/infra/listing/listing.repository.ts` 흐름을 따른다.
+- 현재 Prisma schema에는 `Listing` 모델만 있다. AI extraction 저장소나 idempotency 저장소를 추가하면 schema 변경, repository test, reset helper까지 함께 설계해야 한다.
+- 기존 E2E는 `tests/e2e/listing-registration.spec.ts`에서 ARIA label과 role 기반 selector를 사용한다. PhotoUploader도 role/name 우선 selector와 필요한 경우 명시적 `data-testid`를 제공한다.
 
 ### Architecture Compliance (Must Follow)
 
-- 레이어 경계: `feature -> domain -> infra`만 허용 (`feature -> infra` 직접 import 금지).
+- 레이어 경계: `feature -> domain -> infra`만 허용한다. `feature -> infra` 직접 import 금지.
+- 데이터 흐름: UI -> API/Server Action -> domain -> infra -> DB/fixture/event.
 - 매핑 경계: casing 변환은 `src/infra/mapper/*`에서만 수행한다.
 - API 규약: 성공 `{ data, meta }`, 실패 `{ error: { code, message, details?, requestId } }`.
 - Scope 우선순위: `Active MVP > Deferred P1.5+ > Legacy Reference`.
-- 이벤트/추적 공통 필드(`eventId`, `occurredAt`, `traceId`, `schemaVersion`) 규약을 유지한다.
+- 계약 우선순위: `contracts -> adapters -> handlers -> UI`.
+- AI 제안은 참고 정보이며 사용자 최종 확정 책임 경계를 숨기지 않는다.
 
 ### Technical Requirements
 
-- 업로드 단계는 모바일(320-767)에서 초기 가시영역 내 진입/상태 확인이 가능해야 한다.
-- 파일 검증은 `type/size/corruption`을 분리해 사용자 오류 원인을 명확히 제시해야 한다.
-- fallback CTA는 1탭 전환을 보장하고, 전환 후 늦게 도착한 AI 응답은 무시해야 한다.
-- idempotency 키는 동일 입력 재전송에서 단일 처리 결과를 보장해야 한다.
-- 타임아웃/취소 처리 시 네트워크 장애가 발생해도 등록 핵심 플로우는 비차단이어야 한다.
+- 허용 파일 형식과 최대 용량은 계약 상수로 정의하고 UI/API/domain 검증이 같은 값을 참조해야 한다.
+- 파일 검증은 `type`, `size`, `corruption`을 분리해 사용자 오류 원인을 명확히 제시해야 한다.
+- AI 응답 데이터는 최소 제목, 카테고리, 핵심 스펙 배열, confidence/fallback recommendation을 담을 수 있어야 하며 Story 2.2가 수정 가능한 편집 상태로 이어받을 수 있어야 한다.
+- fallback CTA는 1탭 전환을 보장하고, 전환 후 늦게 도착한 AI 응답은 UI 상태나 manual form 값을 덮어쓰지 않아야 한다.
+- idempotency 키는 동일 입력 재전송과 concurrent duplicate에서 단일 처리 결과를 보장해야 한다.
+- 네트워크 장애, timeout, provider unavailable fixture에서도 기존 `ListingForm` 저장 플로우는 계속 사용 가능해야 한다.
 
 ### File Structure Requirements
 
-- 주요 수정/생성 대상:
-  - `preproduct/src/app/(app)/page.tsx`
-  - `preproduct/src/feature/listing/components/photo-uploader.tsx`
-  - `preproduct/src/feature/listing/components/photo-uploader.module.css`
-  - `preproduct/src/shared/contracts/ai-extraction.ts`
-  - `preproduct/src/app/api/ai/extractions/route.ts`
-  - `preproduct/src/domain/ai-extraction/ai-extraction-validator.ts`
-  - `preproduct/src/domain/ai-extraction/ai-extraction-service.ts`
-  - `preproduct/src/infra/mapper/ai-extraction-mapper.ts`
-  - `preproduct/tests/e2e/photo-uploader-flow.spec.ts`
-  - `preproduct/tests/e2e/ai-extraction-api.contract.spec.ts`
-  - `preproduct/tests/e2e/core-user-flow.spec.ts`
+- 주요 수정/생성 후보:
+  - `src/app/listings/new/page.tsx`
+  - `src/feature/listing/components/listing-form.client.tsx`
+  - `src/feature/listing/components/photo-uploader.client.tsx`
+  - `src/shared/contracts/ai-extraction.ts`
+  - `src/app/api/ai/extractions/route.ts`
+  - `src/domain/ai-extraction/ai-extraction-validator.ts`
+  - `src/domain/ai-extraction/ai-extraction-service.ts`
+  - `src/infra/ai-extraction/ai-extraction.repository.ts`
+  - `src/infra/mapper/ai-extraction-mapper.ts`
+  - `tests/e2e/photo-uploader-flow.spec.ts`
+  - `tests/contracts/ai-extraction-api.contract.test.ts`
+  - `src/app/api/ai/extractions/route.test.ts`
+- 기존 root package 구조를 기준으로 작업한다. `preproduct/src`, `preproduct/tests`, `src/app/(app)`, `src/app/api/listings/drafts`, `src/app/api/decision-cards` 경로를 만들거나 참조하지 않는다.
 
 ### Testing Requirements
 
-- E2E:
-  - 정상 업로드 -> AI 요청 시작 -> 상태 표시
-  - 형식/용량/손상 이미지 오류 분기 + 즉시 재시도 CTA
-  - AI 실패/타임아웃 -> fallback 1탭 전환 -> 수동 입력 지속
-  - fallback 이후 late response 무시
-- 계약 테스트:
+- P0 E2E:
+  - 정상 업로드 -> AI 요청 시작 -> 업로드/요청 상태 표시
+  - AI timeout/unavailable -> fallback 1탭 전환 -> 수동 입력 지속
+  - fallback 이후 late response가 제목/카테고리/핵심 스펙 입력을 덮어쓰지 않음
+- P1 계약/API:
+  - invalid type, oversized file, corrupted image 오류 분기
   - idempotency 키 중복 요청 시 단일 결과 일관성
-  - 오류 스키마(`error.code/message/requestId/details.recoveryGuide`) 고정
+  - 오류 스키마(`error.code`, `error.message`, `error.requestId`, `details.recoveryGuide`) 고정
 - 회귀:
-  - 기존 `listing-draft`, `intent-record`, `decision-card` 계약 테스트 무손상
+  - 기존 listing registration E2E
+  - `listing.created.v1` contract
+  - listing domain/repository unit tests
+- selector:
+  - Playwright는 ARIA role/name을 우선 사용하고, PhotoUploader의 복잡 상태에는 안정적인 `data-testid`를 보조로 둔다.
 
-### Latest Tech Information (Checked: 2026-04-08)
+### Previous Story Intelligence
 
-- 현재 저장소 고정 버전: `next@16.2.2`, `react@19.2.4`, `react-dom@19.2.4`, `@playwright/test@1.59.1` (`preproduct/package.json`).
-- Next.js 최신 릴리즈 라인은 16.2 (2026-03-18 게시)이며, 본 스토리는 프레임워크 업그레이드가 아닌 업로드/상태 복구 정합성 구현에 집중한다.
-- Prisma는 v7 라인 가이드가 공식화되어 있으므로 신규 DB 연동을 추가할 경우 v7 기준 설정을 따르고 MongoDB 미지원 제한을 고려한다.
-- PostgreSQL 최신 지원 릴리즈 공지 기준으로 18.x 최신 마이너를 우선 사용한다(보안/회귀 픽스 반영).
-- Redis Open Source는 8.4.1(2026-02)에서 보안 수정이 포함되어 있어, 캐시/큐 적용 시 8.4 계열 최신 패치 사용을 우선한다.
-- 브라우저 타임아웃 제어는 `AbortSignal.timeout()`/`AbortController` 기반으로 구성해 취소 사유를 명시적으로 구분한다.
+- 직전 Epic 1 스토리 파일은 `_bmad-output/implementation-artifacts/1-4-최소-검증-관측.md`이다.
+- Story 1.4는 별도 대시보드가 아니라 route/export 중심 최소 관측을 선택했다. Epic 2도 대형 운영/계측 시스템을 앞당기지 말고, 필요한 계약과 테스트 신호만 남긴다.
+- Story 1.4 구현 후 관측 route가 추가되었으므로 AI extraction 중복 이벤트나 fallback 이벤트를 추가할 때는 Epic 4 소유의 이벤트 계약 범위와 충돌하지 않게 최소 식별자만 준비한다.
 
-### Project Structure Notes
+### Latest Technical Information (Checked: 2026-04-22)
 
-- 워크스페이스 루트: `PreProduct`
-- 앱 코드 루트: `preproduct/`
-- 스토리 산출물 루트: `_bmad-output/implementation-artifacts`
-- `project-context.md`는 현재 워크스페이스에서 확인되지 않았다.
+- 현재 repo 고정 버전은 `next@16.2.4`, `react@19.2.5`, `react-dom@19.2.5`, `@mui/material@9.0.0`, `@playwright/test@1.59.1`, `prisma@7.7.0`, `typescript@6.0.3`이다 (`package.json`).
+- Next.js Route Handler 공식 문서는 `request.formData()`로 FormData를 읽는 패턴을 지원한다. `POST /api/ai/extractions`는 이 패턴을 사용한다.
+- React 공식 문서의 `useActionState`는 서버 응답 기반 form state에 적합하며, 현재 `ListingForm`도 이 패턴을 사용한다. PhotoUploader는 기존 form state를 깨지 않게 분리/연결한다.
+- MDN 기준 `AbortSignal.timeout()`과 `AbortController`는 timeout/cancel 구분에 사용할 수 있다. fallback 후 stale response 무시는 이 취소 신호만 믿지 말고 `requestVersion`/`clientRequestId`도 검증한다.
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md` (Epic 2 / Story 2.1)
-- `_bmad-output/planning-artifacts/prd.md` (FR8, FR9, FR14, FR15, NFR9, NFR10, NFR11, NFR15)
-- `_bmad-output/planning-artifacts/architecture.md` (레이어/매핑/API 규약, Active MVP 우선순위)
-- `_bmad-output/planning-artifacts/ux-design-specification-2026-04-07-round2-doc-aligned.md` (MVP Flow, PhotoUploader 우선 컴포넌트)
-- `_bmad-output/implementation-artifacts/1-4-1분-등록-플로우-기본-ux-및-접근성-적용.md` (선행 스토리 컨텍스트)
-- `preproduct/src/app/(app)/page.tsx`
-- `preproduct/src/feature/listing/components/listing-draft-form.tsx`
-- `preproduct/src/app/api/decision-cards/route.ts`
-- `preproduct/src/app/api/listings/drafts/route.ts`
-- https://nextjs.org/blog/next-16-2
-- https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7
-- https://www.postgresql.org/support/versioning/
-- https://redis.io/docs/latest/operate/oss_and_stack/stack-with-enterprise/release-notes/redisce/redisos-8.4-release-notes/
-- https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
+- `_bmad-output/planning-artifacts/epics.md` - Epic 2 / Story 2.1
+- `_bmad-output/planning-artifacts/prd.md` - FR8, FR9, FR14, FR15, NFR9, NFR10, NFR11, NFR15
+- `_bmad-output/planning-artifacts/architecture.md` - 레이어/매핑/API 규약, Active MVP 우선순위
+- `_bmad-output/planning-artifacts/ux-design-specification.md` - MUI 기반 UX, PhotoUploader 우선 컴포넌트, AI 제안 수정 가능성
+- `_bmad-output/test-artifacts/test-design-epic-2.md` - Epic 2 위험/테스트 설계
+- `_bmad-output/implementation-artifacts/1-4-최소-검증-관측.md` - 선행 스토리 컨텍스트
+- `src/app/listings/new/page.tsx`
+- `src/feature/listing/components/listing-form.client.tsx`
+- `src/feature/listing/actions/create-listing.action.ts`
+- `tests/e2e/listing-registration.spec.ts`
+- `package.json`
+- https://nextjs.org/docs/app/building-your-application/routing/route-handlers
+- https://react.dev/reference/react/useActionState
+- https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal
 - https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort
 - https://developer.mozilla.org/en-US/docs/Web/API/FormData/append
 
@@ -166,24 +180,29 @@ Coverage: FR8, FR9, FR14, FR15, NFR1, NFR9, NFR10, NFR11, NFR15
 
 ### Agent Model Used
 
-gpt-5
+GPT-5 Codex
 
 ### Debug Log References
 
 - `bmad-init` 로드: `{ user_name: 상재, communication_language: Korean, document_output_language: Korean }`
-- sprint-status 자동 탐색 결과: 첫 backlog 스토리 `2-1-photouploader-기반-이미지-업로드와-ai-초안-요청`
-- 분석 입력 문서: `epics.md`, `prd.md`, `architecture.md`, `architecture-2026-04-07-round2-doc-aligned.md`, `ux-design-specification.md`, `ux-design-specification-2026-04-07-round2-doc-aligned.md`
-- 코드베이스 패턴 점검: `page.tsx`, `listing-draft-form.tsx`, `decision-cards route`, `listings drafts routes`, `core-user-flow.spec.ts`
-- 최신 기술 검증(웹): Next.js 16.2, Prisma v7 가이드, PostgreSQL 18.x current minor, Redis OSS 8.4.1, MDN abort/upload APIs
+- 명시 입력 스토리: `2.1-PhotoUploader 기반 이미지 업로드와 AI 초안 요청`
+- 분석 입력 문서: `epics.md`, `prd.md`, `architecture.md`, `ux-design-specification.md`, `test-design-epic-2.md`
+- 선행 스토리 분석: `1-4-최소-검증-관측.md`
+- 코드베이스 패턴 점검: `src/app/listings/new/page.tsx`, `listing-form.client.tsx`, `create-listing.action.ts`, `listing.repository.ts`, `tests/e2e/listing-registration.spec.ts`
+- 최신 기술 검증: Next Route Handler `request.formData()`, React `useActionState`, MDN AbortSignal/AbortController/FormData
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created
-- Story 2.1 구현 범위를 업로드 성공경로 + 실패/지연/중복 요청 복구까지 포함하도록 고정했다.
-- Story 2.2/2.3 연계를 위한 PhotoUploader 입력 채널/계약 경계를 명시했다.
-- sprint-status에서 `epic-2`를 `in-progress`, 대상 스토리를 `ready-for-dev`로 동기화했다.
+- Story 2.1 구현 범위를 업로드 성공 경로, 파일 오류 분류, 실패/지연/중복 요청 복구까지 포함하도록 고정했다.
+- 현재 repo-root `src/`/`tests/` 구조와 실제 package scripts에 맞게 stale `preproduct/` 경로를 제거했다.
+- 외부 AI 벤더 연동을 MVP 범위에서 제외하고 deterministic fixture/mock provider boundary를 명시했다.
+- ATDD red-phase 산출물을 생성했다. API 계약, PhotoUploader E2E 흐름, idempotency, fallback, late response 무시를 모두 `test.skip(...)` 기반으로 고정했다.
 
 ### File List
 
-- _bmad-output/implementation-artifacts/2-1-photouploader-기반-이미지-업로드와-ai-초안-요청.md
-- _bmad-output/implementation-artifacts/sprint-status.yaml
+- `_bmad-output/implementation-artifacts/2-1-photouploader-기반-이미지-업로드와-ai-초안-요청.md`
+- `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/ai-extraction-test-data.ts`
+- `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/ai-extraction-api.red.test.ts`
+- `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/photo-uploader-flow.red.spec.ts`
+- `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/atdd-checklist-2-1-photouploader-ai-draft-request.md`
