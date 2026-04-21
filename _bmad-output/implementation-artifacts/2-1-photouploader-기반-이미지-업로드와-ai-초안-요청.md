@@ -1,6 +1,6 @@
 # Story 2.1: PhotoUploader 기반 이미지 업로드와 AI 초안 요청
 
-Status: atdd-done
+Status: review
 
 ## Story
 
@@ -39,40 +39,40 @@ Coverage: FR8, FR9, FR14, FR15, NFR9, NFR10, NFR11, NFR15
 
 ## Tasks / Subtasks
 
-- [ ] PhotoUploader UI와 등록 플로우 연결을 구현한다. (AC: 1, 2, 3)
-  - [ ] `src/feature/listing/components/photo-uploader.client.tsx`를 생성하고 파일 선택, 업로드 상태(`idle | validating | requesting | success | error | fallback`)와 AI 요청 트리거를 제공한다.
-  - [ ] 기존 등록 시작점은 `src/app/listings/new/page.tsx`와 `src/feature/listing/components/listing-form.client.tsx`이므로, 이 플로우 안에 PhotoUploader를 연결한다.
-  - [ ] MUI 컴포넌트와 `sx` 패턴을 우선 사용한다. 별도 CSS module은 기존 listing 컴포넌트 패턴과 충돌하므로 필요할 때만 추가한다.
-  - [ ] 상태 전달은 색상 단독 전달을 금지하고 텍스트, 아이콘, `role="status"` 또는 `aria-live`를 병행한다.
-  - [ ] 모바일 320-767px에서 업로드 CTA, 재시도 CTA, fallback CTA는 44x44 이상 터치 타깃을 유지한다.
+- [x] PhotoUploader UI와 등록 플로우 연결을 구현한다. (AC: 1, 2, 3)
+  - [x] `src/feature/listing/components/photo-uploader.client.tsx`를 생성하고 파일 선택, 업로드 상태(`idle | validating | requesting | success | error | fallback`)와 AI 요청 트리거를 제공한다.
+  - [x] 기존 등록 시작점은 `src/app/listings/new/page.tsx`와 `src/feature/listing/components/listing-form.client.tsx`이므로, 이 플로우 안에 PhotoUploader를 연결한다.
+  - [x] MUI 컴포넌트와 `sx` 패턴을 우선 사용한다. 별도 CSS module은 기존 listing 컴포넌트 패턴과 충돌하므로 필요할 때만 추가한다.
+  - [x] 상태 전달은 색상 단독 전달을 금지하고 텍스트, 아이콘, `role="status"` 또는 `aria-live`를 병행한다.
+  - [x] 모바일 320-767px에서 업로드 CTA, 재시도 CTA, fallback CTA는 44x44 이상 터치 타깃을 유지한다.
 
-- [ ] 이미지 검증과 AI 초안 요청 계약을 고정한다. (AC: 1, 2, 5)
-  - [ ] `src/shared/contracts/ai-extraction.ts`를 생성해 요청/응답/오류/상태 타입, `idempotencyKey`, `requestVersion`, `clientRequestId`를 정의한다.
-  - [ ] `src/app/api/ai/extractions/route.ts`를 생성해 `POST /api/ai/extractions`를 구현한다. Next.js Route Handler에서 `request.formData()`로 파일과 메타데이터를 읽는다.
-  - [ ] 응답 형식은 아키텍처 규약을 따른다: 성공 `{ data, meta }`, 실패 `{ error: { code, message, details?, requestId } }`.
-  - [ ] MVP에서는 외부 파트너 API 연동을 추가하지 않는다. AI 결과는 provider boundary 뒤의 deterministic fixture/mock으로 시작해 실패, 타임아웃, 지연 응답을 재현 가능하게 만든다.
-  - [ ] idempotency 키 중복 요청은 동일한 terminal result 또는 동일한 in-flight 상태를 반환해야 하며, concurrent duplicate도 계약 테스트로 고정한다.
+- [x] 이미지 검증과 AI 초안 요청 계약을 고정한다. (AC: 1, 2, 5)
+  - [x] `src/shared/contracts/ai-extraction.ts`를 생성해 요청/응답/오류/상태 타입, `idempotencyKey`, `requestVersion`, `clientRequestId`를 정의한다.
+  - [x] `src/app/api/ai/extractions/route.ts`를 생성해 `POST /api/ai/extractions`를 구현한다. Next.js Route Handler에서 `request.formData()`로 파일과 메타데이터를 읽는다.
+  - [x] 응답 형식은 아키텍처 규약을 따른다: 성공 `{ data, meta }`, 실패 `{ error: { code, message, details?, requestId } }`.
+  - [x] MVP에서는 외부 파트너 API 연동을 추가하지 않는다. AI 결과는 provider boundary 뒤의 deterministic fixture/mock으로 시작해 실패, 타임아웃, 지연 응답을 재현 가능하게 만든다.
+  - [x] idempotency 키 중복 요청은 동일한 terminal result 또는 동일한 in-flight 상태를 반환해야 하며, concurrent duplicate도 계약 테스트로 고정한다.
 
-- [ ] 파일 유효성 검사와 오류 분류를 도메인 경계에 둔다. (AC: 2)
-  - [ ] `src/domain/ai-extraction/ai-extraction-validator.ts`를 생성해 파일 형식, 용량, 손상 이미지 검증을 route와 분리한다.
-  - [ ] 오류 코드는 최소 `INVALID_FILE_TYPE`, `FILE_TOO_LARGE`, `CORRUPTED_IMAGE`, `AI_TIMEOUT`, `AI_UNAVAILABLE`, `DUPLICATE_REQUEST`를 표준화한다.
-  - [ ] `src/infra/ai-extraction/ai-extraction.repository.ts` 또는 동등한 infra 어댑터를 만들 경우, route가 Prisma 또는 저장소 구현을 직접 호출하지 않도록 domain service를 경유한다.
-  - [ ] casing 변환이나 외부 계약 매핑이 필요하면 `src/infra/mapper/ai-extraction-mapper.ts`에만 둔다.
-  - [ ] 사용자 안내 텍스트는 오류 유형별 복구 가이드와 재시도 CTA를 제공한다.
+- [x] 파일 유효성 검사와 오류 분류를 도메인 경계에 둔다. (AC: 2)
+  - [x] `src/domain/ai-extraction/ai-extraction-validator.ts`를 생성해 파일 형식, 용량, 손상 이미지 검증을 route와 분리한다.
+  - [x] 오류 코드는 최소 `INVALID_FILE_TYPE`, `FILE_TOO_LARGE`, `CORRUPTED_IMAGE`, `AI_TIMEOUT`, `AI_UNAVAILABLE`, `DUPLICATE_REQUEST`를 표준화한다.
+  - [x] `src/infra/ai-extraction/ai-extraction.repository.ts` 또는 동등한 infra 어댑터를 만들 경우, route가 Prisma 또는 저장소 구현을 직접 호출하지 않도록 domain service를 경유한다.
+  - [x] casing 변환이나 외부 계약 매핑이 필요하면 `src/infra/mapper/ai-extraction-mapper.ts`에만 둔다.
+  - [x] 사용자 안내 텍스트는 오류 유형별 복구 가이드와 재시도 CTA를 제공한다.
 
-- [ ] fallback, late-response 무시, 취소 토큰 규칙을 구현한다. (AC: 3, 4)
-  - [ ] `src/domain/ai-extraction/ai-extraction-service.ts`를 생성해 요청 버전, 취소 토큰, fallback 전환 상태, idempotency 처리를 관리한다.
-  - [ ] 클라이언트는 `AbortController` 또는 `AbortSignal.timeout()` 기반으로 요청 취소/타임아웃을 구분한다.
-  - [ ] fallback 전환 후 도착한 이전 응답은 `requestVersion` 또는 `clientRequestId` 불일치로 폐기한다.
-  - [ ] 수동 입력 전환 CTA는 1회 탭으로 동작해야 하며, 전환 후 폼 상태(제목/카테고리/핵심 스펙)는 사용자 입력 우선으로 유지한다.
-  - [ ] fallback 경로 실패나 AI 지연은 기존 등록 저장 플로우를 차단하지 않는다.
+- [x] fallback, late-response 무시, 취소 토큰 규칙을 구현한다. (AC: 3, 4)
+  - [x] `src/domain/ai-extraction/ai-extraction-service.ts`를 생성해 요청 버전, 취소 토큰, fallback 전환 상태, idempotency 처리를 관리한다.
+  - [x] 클라이언트는 `AbortController` 또는 `AbortSignal.timeout()` 기반으로 요청 취소/타임아웃을 구분한다.
+  - [x] fallback 전환 후 도착한 이전 응답은 `requestVersion` 또는 `clientRequestId` 불일치로 폐기한다.
+  - [x] 수동 입력 전환 CTA는 1회 탭으로 동작해야 하며, 전환 후 폼 상태(제목/카테고리/핵심 스펙)는 사용자 입력 우선으로 유지한다.
+  - [x] fallback 경로 실패나 AI 지연은 기존 등록 저장 플로우를 차단하지 않는다.
 
-- [ ] 테스트를 확장해 업로드, 요청, 복구, 중복 전송 회귀를 고정한다. (AC: 1, 2, 3, 4, 5)
-  - [ ] `tests/e2e/photo-uploader-flow.spec.ts`를 추가해 정상 업로드, 오류 유형별 재시도, fallback 1탭 전환, late response 무시를 검증한다.
-  - [ ] `tests/contracts/ai-extraction-api.contract.test.ts`를 추가해 성공/오류 스키마, idempotency, unknown status rejection을 검증한다.
-  - [ ] 필요하면 route colocated test(`src/app/api/ai/extractions/route.test.ts`)로 formData 파싱과 validator 호출을 빠르게 검증한다.
-  - [ ] 기존 `tests/e2e/listing-registration.spec.ts`, `src/domain/listing/*.test.ts`, `src/infra/listing/listing.repository.test.ts`, `tests/contracts/listing-created.v1.contract.test.ts` 회귀를 유지한다.
-  - [ ] 현재 루트 스크립트 기준 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, `pnpm test:ci`, `pnpm perf-budget`.
+- [x] 테스트를 확장해 업로드, 요청, 복구, 중복 전송 회귀를 고정한다. (AC: 1, 2, 3, 4, 5)
+  - [x] `tests/e2e/photo-uploader-flow.spec.ts`를 추가해 정상 업로드, 오류 유형별 재시도, fallback 1탭 전환, late response 무시를 검증한다.
+  - [x] `tests/contracts/ai-extraction-api.contract.test.ts`를 추가해 성공/오류 스키마, idempotency, unknown status rejection을 검증한다.
+  - [x] 필요하면 route colocated test(`src/app/api/ai/extractions/route.test.ts`)로 formData 파싱과 validator 호출을 빠르게 검증한다.
+  - [x] 기존 `tests/e2e/listing-registration.spec.ts`, `src/domain/listing/*.test.ts`, `src/infra/listing/listing.repository.test.ts`, `tests/contracts/listing-created.v1.contract.test.ts` 회귀를 유지한다.
+  - [x] 현재 루트 스크립트 기준 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, `pnpm test:ci`, `pnpm perf-budget`.
 
 ## Dev Notes
 
@@ -198,6 +198,11 @@ GPT-5 Codex
 - 현재 repo-root `src/`/`tests/` 구조와 실제 package scripts에 맞게 stale `preproduct/` 경로를 제거했다.
 - 외부 AI 벤더 연동을 MVP 범위에서 제외하고 deterministic fixture/mock provider boundary를 명시했다.
 - ATDD red-phase 산출물을 생성했다. API 계약, PhotoUploader E2E 흐름, idempotency, fallback, late response 무시를 모두 `test.skip(...)` 기반으로 고정했다.
+- Story 2.1 구현 완료: PhotoUploader를 등록 폼에 연결하고, AI extraction 계약/Route Handler/domain validator/service를 추가했다.
+- 파일 형식/용량/손상 이미지 오류를 분리하고, 오류별 복구 가이드와 재시도 CTA를 제공했다.
+- fallback 1탭 전환, AbortController 기반 취소, `clientRequestId`/`requestVersion` 기반 late response 폐기를 구현했다.
+- idempotency key 중복 요청은 in-memory deterministic domain service에서 동일 결과와 `meta.duplicate`로 반환하도록 고정했다.
+- 검증 완료: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, `pnpm test:e2e -- tests/e2e/photo-uploader-flow.spec.ts --project=chromium`, `pnpm test:ci`, `pnpm perf-budget` 통과. 단, 현재 셸 Node `v22.18.0`은 package engines `>=24.14.1 <25`와 달라 모든 pnpm 실행에서 engine warning이 출력되었다.
 
 ### File List
 
@@ -206,3 +211,16 @@ GPT-5 Codex
 - `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/ai-extraction-api.red.test.ts`
 - `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/photo-uploader-flow.red.spec.ts`
 - `_bmad-output/test-artifacts/red-phase/2-1-photouploader-ai-draft-request/atdd-checklist-2-1-photouploader-ai-draft-request.md`
+- `package.json`
+- `src/app/api/ai/extractions/route.ts`
+- `src/domain/ai-extraction/ai-extraction-service.ts`
+- `src/domain/ai-extraction/ai-extraction-validator.ts`
+- `src/feature/listing/components/listing-form.client.tsx`
+- `src/feature/listing/components/photo-uploader.client.tsx`
+- `src/shared/contracts/ai-extraction.ts`
+- `tests/contracts/ai-extraction-api.contract.test.ts`
+- `tests/e2e/photo-uploader-flow.spec.ts`
+
+### Change Log
+
+- 2026-04-22: Story 2.1 구현 완료 - PhotoUploader UI, AI extraction 계약/API/domain service/validator, focused contract/E2E coverage 추가, 상태를 review로 전환.

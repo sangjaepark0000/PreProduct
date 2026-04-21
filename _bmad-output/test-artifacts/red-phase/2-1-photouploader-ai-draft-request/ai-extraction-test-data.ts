@@ -11,6 +11,12 @@ export const aiExtractionRequestMeta = {
   requestVersion: 1
 } as const;
 
+export type AiExtractionRequestMeta = {
+  clientRequestId: string;
+  idempotencyKey: string;
+  requestVersion: number;
+};
+
 export function createAiExtractionTestFile({
   name = "macbook-photo.jpg",
   type = "image/jpeg",
@@ -26,7 +32,7 @@ export function createAiExtractionTestFile({
 
 export function buildAiExtractionFormData(
   file = createAiExtractionTestFile(),
-  meta = aiExtractionRequestMeta
+  meta: AiExtractionRequestMeta = aiExtractionRequestMeta
 ): FormData {
   const formData = new FormData();
 
