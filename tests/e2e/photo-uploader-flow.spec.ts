@@ -1,32 +1,25 @@
 import { expect, test } from "../support/fixtures/index.js";
+import {
+  buildAiSuccessBody,
+  buildAiTimeoutErrorBody,
+  createDeferred,
+  readAiRequestMeta
+} from "../support/helpers/ai-extraction.js";
 
 test.describe("PhotoUploader flow", () => {
   test("uploads a valid product photo and shows AI draft request status", async ({
     page
   }) => {
+    const responseReady = createDeferred();
+
     await page.route("**/api/ai/extractions", async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
+      await responseReady.promise;
       await route.fulfill({
         status: 202,
         contentType: "application/json",
-        body: JSON.stringify({
-          data: {
-            status: "requesting",
-            clientRequestId: "client-e2e-success",
-            idempotencyKey: "idem-e2e-success",
-            requestVersion: 1,
-            draft: {
-              title: "AI가 만든 제목",
-              category: "노트북",
-              keySpecifications: ["M3", "16GB RAM"],
-              confidence: 0.82,
-              fallbackRecommended: false
-            }
-          },
-          meta: {
-            requestId: "req-e2e-success"
-          }
-        })
+        body: buildAiSuccessBody(meta, "req-e2e-success")
       });
     });
 
@@ -44,6 +37,15 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "requesting"
     );
+
+    responseReady.resolve();
+
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "success"
+    );
+    await expect(page.getByLabel("제목")).toHaveValue("AI가 만든 제목");
+    await expect(page.getByLabel("카테고리")).toHaveValue("노트북");
+    await expect(page.getByLabel("핵심 스펙")).toHaveValue("M3\n16GB RAM");
   });
 
   test("separates file type, size, and corruption errors with retry CTA", async ({
@@ -108,17 +110,7 @@ test.describe("PhotoUploader flow", () => {
       await route.fulfill({
         status: 504,
         contentType: "application/json",
-        body: JSON.stringify({
-          error: {
-            code: "AI_TIMEOUT",
-            message: "AI 초안 생성 시간이 초과되었습니다.",
-            requestId: "req-timeout",
-            details: {
-              recoveryGuide: "수동 입력으로 계속 진행할 수 있습니다.",
-              retryable: true
-            }
-          }
-        })
+        body: buildAiTimeoutErrorBody("req-timeout")
       });
     });
 
@@ -142,13 +134,10 @@ test.describe("PhotoUploader flow", () => {
   test("ignores a late AI response after fallback and preserves manual edits", async ({
     page
   }) => {
-    let releaseLateResponse: (() => void) | undefined;
-    const lateResponse = new Promise<void>((resolve) => {
-      releaseLateResponse = resolve;
-    });
+    const lateResponse = createDeferred();
 
     await page.route("**/api/ai/extractions", async (route) => {
-      await lateResponse;
+      await lateResponse.promise;
       await route.fulfill({
         status: 202,
         contentType: "application/json",
@@ -185,7 +174,7 @@ test.describe("PhotoUploader flow", () => {
     await page.getByLabel("카테고리").fill("카메라");
     await page.getByLabel("핵심 스펙").fill("사용자 입력 스펙");
 
-    releaseLateResponse?.();
+    lateResponse.resolve();
 
     await expect(page.getByLabel("제목")).toHaveValue("사용자가 직접 입력한 제목");
     await expect(page.getByLabel("카테고리")).toHaveValue("카메라");
@@ -193,5 +182,64 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
     );
+  });
+
+  test("keeps the newer upload result when an older request fails late", async ({
+    page
+  }) => {
+    const firstRequestReady = createDeferred();
+    let requestCount = 0;
+
+    await page.route("**/api/ai/extractions", async (route) => {
+      requestCount += 1;
+
+      if (requestCount === 1) {
+        await firstRequestReady.promise;
+
+        await route.fulfill({
+          status: 504,
+          contentType: "application/json",
+          body: buildAiTimeoutErrorBody("req-first-timeout")
+        });
+        return;
+      }
+
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: buildAiSuccessBody(meta, "req-second-success")
+      });
+    });
+
+    await page.goto("/listings/new");
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "first-photo.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("first-fake-jpeg-bytes")
+    });
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "requesting"
+    );
+
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "second-photo.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("second-fake-jpeg-bytes")
+    });
+
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "success"
+    );
+    firstRequestReady.resolve();
+
+    await expect(page.getByTestId("photo-uploader").getByRole("alert")).toHaveCount(
+      0
+    );
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "success"
+    );
+    await expect(page.getByLabel("제목")).toHaveValue("AI가 만든 제목");
   });
 });

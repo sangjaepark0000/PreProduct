@@ -152,16 +152,25 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     const clientRequestId = buildClientRequestId();
     const requestVersion = requestVersionRef.current + 1;
     const abortController = new AbortController();
+    const isCurrentRequest = () =>
+      requestVersionRef.current === requestVersion && !fallbackActiveRef.current;
     const timeoutId = window.setTimeout(() => {
       abortController.abort();
     }, 10_000);
 
+    abortControllerRef.current?.abort();
     requestVersionRef.current = requestVersion;
     abortControllerRef.current = abortController;
     fallbackActiveRef.current = false;
     setUploadError(null);
     setStatus("validating");
     await Promise.resolve();
+
+    if (!isCurrentRequest()) {
+      window.clearTimeout(timeoutId);
+      return;
+    }
+
     setStatus("requesting");
 
     const formData = new FormData();
@@ -181,6 +190,11 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
 
       if (!response.ok) {
         const body = (await response.json()) as AiExtractionErrorEnvelope;
+
+        if (!isCurrentRequest()) {
+          return;
+        }
+
         const code = body.error.code;
         const fallbackCopy = errorCopyByCode[code] ?? {
           code,
@@ -199,8 +213,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
       const isCurrentResponse =
         body.data.clientRequestId === clientRequestId &&
         body.data.requestVersion === requestVersion &&
-        requestVersionRef.current === requestVersion &&
-        !fallbackActiveRef.current;
+        isCurrentRequest();
 
       if (!isCurrentResponse) {
         return;
@@ -211,7 +224,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     } catch (error) {
       window.clearTimeout(timeoutId);
 
-      if (fallbackActiveRef.current) {
+      if (!isCurrentRequest()) {
         return;
       }
 
