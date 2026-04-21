@@ -242,4 +242,49 @@ test.describe("PhotoUploader flow", () => {
     );
     await expect(page.getByLabel("제목")).toHaveValue("AI가 만든 제목");
   });
+
+  test("ignores an older AI response after a later invalid file selection", async ({
+    page
+  }) => {
+    const lateResponse = createDeferred();
+
+    await page.route("**/api/ai/extractions", async (route) => {
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
+      await lateResponse.promise;
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: buildAiSuccessBody(meta, "req-invalid-selection-late")
+      });
+    });
+
+    await page.goto("/listings/new");
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "first-photo.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("fake-jpeg-bytes")
+    });
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "requesting"
+    );
+
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "product.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("not an image")
+    });
+    await expect(
+      page.getByRole("alert").filter({ hasText: "지원하지 않는 파일 형식" })
+    ).toContainText("지원하지 않는 파일 형식");
+
+    lateResponse.resolve();
+
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "error"
+    );
+    await expect(page.getByLabel("제목")).toHaveValue("");
+    await expect(page.getByLabel("카테고리")).toHaveValue("");
+    await expect(page.getByLabel("핵심 스펙")).toHaveValue("");
+  });
 });

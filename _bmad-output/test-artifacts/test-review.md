@@ -18,9 +18,9 @@ inputDocuments:
 
 # Test Review: Story 2.1 PhotoUploader 기반 이미지 업로드와 AI 초안 요청
 
-**Date:** 2026-04-22  
-**Scope:** Story 2.1 focused test review  
-**Stack:** Next.js App Router, React, Jest contract tests, Playwright E2E  
+**Date:** 2026-04-22
+**Scope:** Story 2.1 focused test review
+**Stack:** Next.js App Router, React, Jest contract tests, Playwright E2E
 **Coverage note:** `test-review`는 coverage를 점수화하지 않는다. 요구사항 추적과 coverage gate는 `trace` 워크플로우에서 다룬다.
 
 ## Score Summary

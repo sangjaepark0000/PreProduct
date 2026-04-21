@@ -131,8 +131,14 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
   const abortControllerRef = useRef<AbortController | null>(null);
   const fallbackActiveRef = useRef(false);
 
-  function resetForRetry() {
+  function invalidateCurrentRequest() {
     abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    requestVersionRef.current += 1;
+  }
+
+  function resetForRetry() {
+    invalidateCurrentRequest();
     fallbackActiveRef.current = false;
     setStatus("idle");
     setUploadError(null);
@@ -140,8 +146,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
   }
 
   function switchToFallback() {
-    abortControllerRef.current?.abort();
-    requestVersionRef.current += 1;
+    invalidateCurrentRequest();
     fallbackActiveRef.current = true;
     setUploadError(null);
     setStatus("fallback");
@@ -251,6 +256,8 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     const validationError = mapClientValidationError(file);
 
     if (validationError) {
+      invalidateCurrentRequest();
+      fallbackActiveRef.current = false;
       setUploadError(validationError);
       setStatus("error");
       return;

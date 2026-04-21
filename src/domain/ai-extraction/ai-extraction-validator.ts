@@ -35,14 +35,39 @@ export type AiExtractionValidationResult =
       error: AiExtractionValidationError;
     };
 
-const imageSignatures: Record<string, number[][]> = {
-  "image/jpeg": [[0xff, 0xd8, 0xff]],
-  "image/png": [[0x89, 0x50, 0x4e, 0x47]],
-  "image/webp": [[0x52, 0x49, 0x46, 0x46]]
-};
+const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const riffSignature = [0x52, 0x49, 0x46, 0x46];
+const webpFormatMarker = [0x57, 0x45, 0x42, 0x50];
 
 function startsWithSignature(bytes: Uint8Array, signature: number[]): boolean {
   return signature.every((value, index) => bytes[index] === value);
+}
+
+function hasSignatureAtOffset(
+  bytes: Uint8Array,
+  signature: number[],
+  offset: number
+): boolean {
+  return signature.every((value, index) => bytes[offset + index] === value);
+}
+
+function hasValidImageSignature(bytes: Uint8Array, mimeType: string): boolean {
+  if (mimeType === "image/jpeg") {
+    return startsWithSignature(bytes, [0xff, 0xd8, 0xff]);
+  }
+
+  if (mimeType === "image/png") {
+    return startsWithSignature(bytes, pngSignature);
+  }
+
+  if (mimeType === "image/webp") {
+    return (
+      startsWithSignature(bytes, riffSignature) &&
+      hasSignatureAtOffset(bytes, webpFormatMarker, 8)
+    );
+  }
+
+  return false;
 }
 
 function isDeterministicTestFixture(bytes: Uint8Array): boolean {
@@ -109,14 +134,11 @@ export async function validateAiExtractionPhoto(
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const signatures = imageSignatures[file.type] ?? [];
-  const hasKnownSignature = signatures.some((signature) =>
-    startsWithSignature(bytes, signature)
-  );
 
   if (
     isCorruptedFixture(bytes) ||
-    (!hasKnownSignature && !isDeterministicTestFixture(bytes))
+    (!hasValidImageSignature(bytes, file.type) &&
+      !isDeterministicTestFixture(bytes))
   ) {
     return validationError(
       "CORRUPTED_IMAGE",

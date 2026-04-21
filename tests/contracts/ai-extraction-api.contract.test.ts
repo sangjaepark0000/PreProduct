@@ -109,6 +109,15 @@ describe("AI extraction API contract", () => {
         type: "image/jpeg",
         contents: "corrupted-image-fixture"
       })
+    },
+    {
+      status: 422,
+      code: "CORRUPTED_IMAGE",
+      file: createTestFile({
+        name: "spoofed-product.webp",
+        type: "image/webp",
+        contents: "RIFFxxxxAVI "
+      })
     }
   ])("classifies $code with retry guidance", async ({ status, code, file }) => {
     const response = await POST(buildRequest(buildFormData(file)));

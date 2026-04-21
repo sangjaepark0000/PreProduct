@@ -1,6 +1,6 @@
 # Story 2.1: PhotoUploader 기반 이미지 업로드와 AI 초안 요청
 
-Status: review
+Status: done
 
 ## Story
 
@@ -73,6 +73,11 @@ Coverage: FR8, FR9, FR14, FR15, NFR9, NFR10, NFR11, NFR15
   - [x] 필요하면 route colocated test(`src/app/api/ai/extractions/route.test.ts`)로 formData 파싱과 validator 호출을 빠르게 검증한다.
   - [x] 기존 `tests/e2e/listing-registration.spec.ts`, `src/domain/listing/*.test.ts`, `src/infra/listing/listing.repository.test.ts`, `tests/contracts/listing-created.v1.contract.test.ts` 회귀를 유지한다.
   - [x] 현재 루트 스크립트 기준 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, `pnpm test:ci`, `pnpm perf-budget`.
+
+### Review Findings
+
+- [x] [Review][Patch] Invalid file selection did not invalidate active AI request [src/feature/listing/components/photo-uploader.client.tsx:258]
+- [x] [Review][Patch] WebP validation accepted generic RIFF bytes as non-corrupted image [src/domain/ai-extraction/ai-extraction-validator.ts:63]
 
 ## Dev Notes
 
