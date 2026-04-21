@@ -1,4 +1,6 @@
 type,name,module,path,hash
+"yaml","config","bad","bad/config.yaml","9cc02e467ce7aa7ee76c322698a20f8f4607ca459901874084a1f4b956cd7b35"
+"csv","module-help","bad","bad/module-help.csv","5a658f93551d584c5ef99d4d7c37040d650a3da0ec023f60967cab679ad38bdc"
 "csv","agent-manifest","_config","_config/agent-manifest.csv","bc1dde744a5921f62d3560cd150768fc7b018ed27d182d8c6b36695c8c92da41"
 "yaml","manifest","_config","_config/manifest.yaml","be6f6119083802a05f4875ea89e3be584c15516a8fc0b0cd2d902f20a17c29be"
 "csv","module-help","bmb","bmb/bmad-bmb-setup/assets/module-help.csv","a92431fa63e7c2e97f315337f0291a49e67492957f2fdf1df4483beda4b18ae1"

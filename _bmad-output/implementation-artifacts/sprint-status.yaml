@@ -29,7 +29,7 @@
 #
 # WORKFLOW NOTES:
 # ===============
-# - Epic transitions to 'in-progress' automatically when first story is created
+# - Epic transitions to 'in-progress' automatically when first story is created (via create-story)
 # - Stories can be worked in parallel if team capacity allows
 # - Developer typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
@@ -42,11 +42,25 @@ tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 
 development_status:
-  # Epic 1: 중고 매물 등록 기본 흐름과 프리리스팅 상태
-  epic-1: in-progress
+  # Epic 1: 판매자 공급 생성 기반과 프리리스팅 상태
+  epic-1: done
   1-0-프로젝트-초기화-및-품질-게이트-베이스라인: done
-  1-1-기본-매물-등록: review
-  1-2-프리리스팅-상태-저장-및-수정: backlog
-  1-3-필수-필드-검증: review
-  1-4-최소-검증-관측: review
+  1-1-기본-매물-등록: done
+  1-2-프리리스팅-상태-저장-및-수정: done
+  1-3-필수-필드-검증: done
+  1-4-최소-검증-관측: done
   epic-1-retrospective: optional
+
+  # Epic 2: 구매자 탐색과 공개 매물 발견
+  epic-2: backlog
+  2-1-공개-매물-목록-피드: backlog
+  2-2-검색-및-상태-필터: backlog
+  2-3-공개-상세-조회와-프리리스팅-배지: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: 구매자 관심 신호와 판매자 응답 루프
+  epic-3: backlog
+  3-1-구매자-관심표시-또는-문의-요청: backlog
+  3-2-판매자-리드-확인-화면: backlog
+  3-3-marketplace-최소-전환-계측: backlog
+  epic-3-retrospective: optional
