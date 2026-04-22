@@ -1,6 +1,6 @@
 # Story 3.3: 가격 변경 이력 조회 및 최소 신호 수집
 
-Status: review
+Status: done
 
 ## Story
 
