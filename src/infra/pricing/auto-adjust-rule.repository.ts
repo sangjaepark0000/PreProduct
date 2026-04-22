@@ -138,4 +138,3 @@ export function getAutoAdjustRuleRepository(): AutoAdjustRuleRepository {
 export async function resetAutoAdjustRuleRepository(): Promise<void> {
   await getPrismaClient().autoAdjustRule.deleteMany();
 }
-

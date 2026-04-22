@@ -94,4 +94,3 @@ generatedTestFiles:
 - TDD compliance: generated executable scenarios use `test.skip()` and contain concrete assertions rather than placeholders.
 - CLI browser recording: not used; target component and selectors do not exist yet, so selector verification is documented as implementation requirements.
 - Temp artifacts: stored under `_bmad-output/test-artifacts/red-phase/story-3-1/`, not random temp paths.
-

@@ -73,7 +73,6 @@ describe("autoAdjustRuleInputSchema", () => {
     );
   });
 });
-
 describe("auto-adjust rule display helpers", () => {
   const activeRule: AutoAdjustRule = {
     listingId,
@@ -98,4 +97,3 @@ describe("auto-adjust rule display helpers", () => {
     });
   });
 });
-
