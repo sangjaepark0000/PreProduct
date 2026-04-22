@@ -4,6 +4,14 @@ import { getListingRepository } from "../../src/infra/listing/listing.repository
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
+async function confirmManualPrice(
+  page: import("@playwright/test").Page,
+  priceKrw: string
+) {
+  await page.getByLabel("수동 가격 (원)").fill(priceKrw);
+  await page.getByRole("button", { name: "수동 가격 확정" }).click();
+}
+
 test.describe("Listing registration", () => {
   test.skip(
     !hasDatabaseUrl,
@@ -35,7 +43,7 @@ test.describe("Listing registration", () => {
 
     await page.getByLabel("제목").fill(title);
     await page.getByLabel("핵심 스펙").fill("M4 Pro\n24GB RAM");
-    await page.getByLabel("가격 (원)").fill("2850000");
+    await confirmManualPrice(page, "2850000");
     await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
 
     await expect(page).toHaveURL(/\/listings\/[0-9a-f-]+$/u);
@@ -57,7 +65,7 @@ test.describe("Listing registration", () => {
     await page
       .getByLabel("핵심 스펙")
       .fill("16GB RAM\n16GB RAM\n배터리 사이클 35회");
-    await page.getByLabel("가격 (원)").fill("1850000");
+    await confirmManualPrice(page, "1850000");
     await page.getByLabel("프리리스팅").check();
     await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
 

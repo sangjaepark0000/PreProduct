@@ -1,6 +1,6 @@
 # Story 2.3: PriceSuggestionCard 기반 추천가 수용/수정 확정
 
-Status: atdd-done
+Status: review
 
 ## Story
 
@@ -41,45 +41,45 @@ so that 가격 결정을 빠르게 마무리할 수 있다.
 
 ## Tasks / Subtasks
 
-- [ ] `PriceSuggestionCard`를 등록 플로우에 추가한다. (AC: 1, 2, 5)
-  - [ ] `src/feature/listing/components/price-suggestion-card.client.tsx`를 생성한다.
-  - [ ] 추천가, 근거/범위, 추천 산출 기준 revision, 수용 CTA, 수동 가격 입력, 확정 CTA를 한 카드 안에서 제공한다.
-  - [ ] 기존 `TextField name="priceKrw"`를 카드 내부의 최종 가격 state로 대체하되, 제출되는 `FormData` key는 반드시 `priceKrw`로 유지한다.
-  - [ ] `ListingDraftFields`에서 확정된 제목/카테고리/핵심 스펙 revision을 `PriceSuggestionCard`에 전달한다. 추천가가 해당 revision보다 오래됐으면 수용 확정을 막는다.
-  - [ ] AI 실패/fallback 경로에서도 카드 없이 등록이 막히지 않도록 수동 가격 확정 경로를 제공한다.
+- [x] `PriceSuggestionCard`를 등록 플로우에 추가한다. (AC: 1, 2, 5)
+  - [x] `src/feature/listing/components/price-suggestion-card.client.tsx`를 생성한다.
+  - [x] 추천가, 근거/범위, 추천 산출 기준 revision, 수용 CTA, 수동 가격 입력, 확정 CTA를 한 카드 안에서 제공한다.
+  - [x] 기존 `TextField name="priceKrw"`를 카드 내부의 최종 가격 state로 대체하되, 제출되는 `FormData` key는 반드시 `priceKrw`로 유지한다.
+  - [x] `ListingDraftFields`에서 확정된 제목/카테고리/핵심 스펙 revision을 `PriceSuggestionCard`에 전달한다. 추천가가 해당 revision보다 오래됐으면 수용 확정을 막는다.
+  - [x] AI 실패/fallback 경로에서도 카드 없이 등록이 막히지 않도록 수동 가격 확정 경로를 제공한다.
 
-- [ ] 추천가 계약과 최소 산출 helper를 추가한다. (AC: 1, 4, 5)
-  - [ ] `src/shared/contracts/pricing-suggestion.ts`를 생성하고 `PricingSuggestion`, `PricingSuggestionBasis`, `PricingConfirmationMode`, `PricingConfirmationInput` 타입/Zod schema를 정의한다.
-  - [ ] `src/domain/pricing/pricing-suggestion.ts`를 생성해 MVP용 deterministic suggestion helper를 둔다. 외부 가격 API, 크롤러, ML provider는 추가하지 않는다.
-  - [ ] 추천가는 현재 확정된 상품 정보의 revision hash 또는 deterministic `basisRevision`과 함께 생성한다.
-  - [ ] 추천가 산출 실패 또는 낮은 근거 품질에서는 수동 가격 입력을 우선 노출한다.
+- [x] 추천가 계약과 최소 산출 helper를 추가한다. (AC: 1, 4, 5)
+  - [x] `src/shared/contracts/pricing-suggestion.ts`를 생성하고 `PricingSuggestion`, `PricingSuggestionBasis`, `PricingConfirmationMode`, `PricingConfirmationInput` 타입/Zod schema를 정의한다.
+  - [x] `src/domain/pricing/pricing-suggestion.ts`를 생성해 MVP용 deterministic suggestion helper를 둔다. 외부 가격 API, 크롤러, ML provider는 추가하지 않는다.
+  - [x] 추천가는 현재 확정된 상품 정보의 revision hash 또는 deterministic `basisRevision`과 함께 생성한다.
+  - [x] 추천가 산출 실패 또는 낮은 근거 품질에서는 수동 가격 입력을 우선 노출한다.
 
-- [ ] 가격 검증과 최종 form 반영 규칙을 구현한다. (AC: 1, 2)
-  - [ ] 수동 입력과 추천가 수용 모두 최종 `priceKrw` controlled state를 갱신한다.
-  - [ ] MVP 가격 정책을 한 곳에 고정한다: 정수 KRW, 최소 `1`, 권장 step `1000`, 최대값은 도메인 상수로 명시한다.
-  - [ ] 검증 실패 시 MUI `TextField` `error/helperText`, 카드 상단 `Alert`, `aria-live`를 사용해 원인과 복구 행동을 전달한다.
-  - [ ] 최종 저장 검증은 기존 `createListingInputSchema.priceKrw`와 의미가 어긋나지 않아야 한다. 클라이언트 검증은 UX 편의를 위한 선검증이다.
+- [x] 가격 검증과 최종 form 반영 규칙을 구현한다. (AC: 1, 2)
+  - [x] 수동 입력과 추천가 수용 모두 최종 `priceKrw` controlled state를 갱신한다.
+  - [x] MVP 가격 정책을 한 곳에 고정한다: 정수 KRW, 최소 `1`, 권장 step `1000`, 최대값은 도메인 상수로 명시한다.
+  - [x] 검증 실패 시 MUI `TextField` `error/helperText`, 카드 상단 `Alert`, `aria-live`를 사용해 원인과 복구 행동을 전달한다.
+  - [x] 최종 저장 검증은 기존 `createListingInputSchema.priceKrw`와 의미가 어긋나지 않아야 한다. 클라이언트 검증은 UX 편의를 위한 선검증이다.
 
-- [ ] `pricing.suggestion.accepted.v1` 이벤트 계약과 producer-ready helper를 추가한다. (AC: 1, 3, 4)
-  - [ ] `src/shared/contracts/events/pricing-suggestion-accepted.v1.ts`를 생성한다.
-  - [ ] 공통 필드는 아키텍처 규칙을 따른다: `eventId`, `occurredAt`, `traceId`, `schemaVersion`.
-  - [ ] payload에는 최소 `clientRequestId`, `idempotencyKey`, `basisRevision`, `suggestedPriceKrw`, `confirmedPriceKrw`, `mode`, `deltaKrw`, `manualReason?`를 포함한다.
-  - [ ] 동일 `idempotencyKey + basisRevision + confirmedPriceKrw + mode`에서 같은 `eventId`가 나오도록 deterministic helper를 만든다.
-  - [ ] 권한/세션 실패 또는 가격 검증 실패에서는 event helper를 호출하지 않는다.
-  - [ ] Epic 4 소유 범위인 이벤트 수집 파이프라인, 운영 대시보드, 경보 route는 구현하지 않는다.
+- [x] `pricing.suggestion.accepted.v1` 이벤트 계약과 producer-ready helper를 추가한다. (AC: 1, 3, 4)
+  - [x] `src/shared/contracts/events/pricing-suggestion-accepted.v1.ts`를 생성한다.
+  - [x] 공통 필드는 아키텍처 규칙을 따른다: `eventId`, `occurredAt`, `traceId`, `schemaVersion`.
+  - [x] payload에는 최소 `clientRequestId`, `idempotencyKey`, `basisRevision`, `suggestedPriceKrw`, `confirmedPriceKrw`, `mode`, `deltaKrw`, `manualReason?`를 포함한다.
+  - [x] 동일 `idempotencyKey + basisRevision + confirmedPriceKrw + mode`에서 같은 `eventId`가 나오도록 deterministic helper를 만든다.
+  - [x] 권한/세션 실패 또는 가격 검증 실패에서는 event helper를 호출하지 않는다.
+  - [x] Epic 4 소유 범위인 이벤트 수집 파이프라인, 운영 대시보드, 경보 route는 구현하지 않는다.
 
-- [ ] 권한/세션 오류를 가격 확정 UX에 연결한다. (AC: 3)
-  - [ ] 현재 등록 화면이 인증을 강제하지 않는다면 실제 auth provider를 새로 붙이지 말고, 가격 확정 helper/action의 typed error와 UI 복구 문구를 테스트 가능하게 설계한다.
-  - [ ] `AUTH_REQUIRED` 또는 동등한 domain/contract error code를 카드 UI에서 재인증/재시도 안내로 매핑한다.
-  - [ ] auth 실패 상태에서도 현재 입력된 제목/카테고리/핵심 스펙/가격을 잃지 않는다.
+- [x] 권한/세션 오류를 가격 확정 UX에 연결한다. (AC: 3)
+  - [x] 현재 등록 화면이 인증을 강제하지 않는다면 실제 auth provider를 새로 붙이지 말고, 가격 확정 helper/action의 typed error와 UI 복구 문구를 테스트 가능하게 설계한다.
+  - [x] `AUTH_REQUIRED` 또는 동등한 domain/contract error code를 카드 UI에서 재인증/재시도 안내로 매핑한다.
+  - [x] auth 실패 상태에서도 현재 입력된 제목/카테고리/핵심 스펙/가격을 잃지 않는다.
 
-- [ ] 테스트를 확장해 가격 확정 회귀를 고정한다. (AC: 1, 2, 3, 4, 5)
-  - [ ] `tests/e2e/price-suggestion-card-flow.spec.ts`를 추가해 추천가 표시, 추천가 수용, 수동 수정 확정, 최종 `priceKrw` 제출 반영을 검증한다.
-  - [ ] revision mismatch 시 기존 추천가 수용이 차단되고 재확인/재산출 안내가 표시되는 E2E를 추가한다.
-  - [ ] 수동 가격 검증 실패, 권한 오류 복구 안내, 입력 유지 케이스를 추가한다.
-  - [ ] `tests/contracts/pricing-suggestion-accepted.v1.contract.test.ts`와 fixture를 추가해 event schema와 deterministic `eventId`를 고정한다.
-  - [ ] `src/domain/pricing/pricing-suggestion.test.ts` 또는 contract unit test로 price policy, basisRevision, accepted/edited mode 계산을 검증한다.
-  - [ ] 회귀 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, 관련 Playwright E2E, `pnpm perf-budget`.
+- [x] 테스트를 확장해 가격 확정 회귀를 고정한다. (AC: 1, 2, 3, 4, 5)
+  - [x] `tests/e2e/price-suggestion-card-flow.spec.ts`를 추가해 추천가 표시, 추천가 수용, 수동 수정 확정, 최종 `priceKrw` 제출 반영을 검증한다.
+  - [x] revision mismatch 시 기존 추천가 수용이 차단되고 재확인/재산출 안내가 표시되는 E2E를 추가한다.
+  - [x] 수동 가격 검증 실패, 권한 오류 복구 안내, 입력 유지 케이스를 추가한다.
+  - [x] `tests/contracts/pricing-suggestion-accepted.v1.contract.test.ts`와 fixture를 추가해 event schema와 deterministic `eventId`를 고정한다.
+  - [x] `src/domain/pricing/pricing-suggestion.test.ts` 또는 contract unit test로 price policy, basisRevision, accepted/edited mode 계산을 검증한다.
+  - [x] 회귀 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, 관련 Playwright E2E, `pnpm perf-budget`.
 
 ## Dev Notes
 
@@ -232,6 +232,9 @@ GPT-5 Codex
 - 선행/인접 스토리 분석: Story 2.2, Story 2.4, Story 2.1
 - 코드베이스 패턴 점검: `listing-form.client.tsx`, `extraction-field-editor.client.tsx`, `create-listing.action.ts`, `listing.ts`, `ai-extraction-reviewed.v1.ts`, `photo-uploader-flow.spec.ts`
 - 최신 기술 확인: repo-pinned package versions plus official React/MUI/Playwright docs
+- 2026-04-22: `pnpm install --frozen-lockfile --offline` 실행. Node engine warning 확인: wanted `>=24.14.1 <25`, current `node v22.18.0`, `pnpm 10.28.2`.
+- 2026-04-22: `pnpm exec prisma generate` 최초 실행은 `DATABASE_URL` 미설정으로 실패했고, dummy `DATABASE_URL=postgresql://user:pass@localhost:5432/preproduct` 설정 후 Prisma Client 생성을 완료했다.
+- 2026-04-22: focused checks 실행: `pnpm typecheck`, `pnpm lint`, `pnpm unit`, `pnpm contract`, `pnpm perf-budget`, `PLAYWRIGHT_WEB_SERVER_COMMAND="pnpm dev" pnpm exec playwright test tests/e2e/price-suggestion-card-flow.spec.ts --project=chromium`.
 
 ### Completion Notes List
 
@@ -242,6 +245,11 @@ GPT-5 Codex
 - Epic 3 자동 가격조정과 Epic 4 이벤트 수집/대시보드를 앞당기지 않도록 범위를 분리했다.
 - create-story checklist 기준 검증을 반복했으며 템플릿 잔여값이나 추가 보완 finding이 남아 있지 않다.
 - 2026-04-22: ATDD red-phase workflow completed. PriceSuggestionCard E2E, pricing event contract, canonical fixture, factory, and ATDD checklist were generated under `_bmad-output/test-artifacts`.
+- 2026-04-22: `PriceSuggestionCard`를 등록 플로우에 추가하고 추천가 수용/수동 수정 확정만 최종 `priceKrw`로 반영되도록 변경했다.
+- 2026-04-22: 가격 추천 계약, deterministic `basisRevision`, MVP 가격 정책, 검증 helper, `pricing.suggestion.accepted.v1` event schema/helper를 추가했다.
+- 2026-04-22: revision mismatch, invalid price, `AUTH_REQUIRED` recovery branch에서 이벤트 생성이 차단되고 입력이 유지되는 UX를 구현했다.
+- 2026-04-22: 가격 카드 도입에 맞춰 listing registration/photo uploader E2E의 가격 입력 경로를 명시적 수동 가격 확정으로 갱신했다.
+- 2026-04-22: focused validation gates passed. Playwright story run result: 5 passed, 5 ATDD red-phase skipped.
 
 ### File List
 
@@ -251,8 +259,22 @@ GPT-5 Codex
 - `_bmad-output/test-artifacts/red-phase/story-2-3/tests/contracts/pricing-suggestion-accepted-v1.spec.ts`
 - `_bmad-output/test-artifacts/red-phase/story-2-3/tests/contracts/fixtures/pricing.suggestion.accepted.v1.json`
 - `_bmad-output/test-artifacts/red-phase/story-2-3/tests/support/factories/pricing-confirmation.factory.ts`
+- `package.json`
+- `src/domain/listing/listing.ts`
+- `src/domain/pricing/pricing-suggestion.ts`
+- `src/domain/pricing/pricing-suggestion.test.ts`
+- `src/feature/listing/components/listing-form.client.tsx`
+- `src/feature/listing/components/price-suggestion-card.client.tsx`
+- `src/shared/contracts/events/pricing-suggestion-accepted.v1.ts`
+- `src/shared/contracts/pricing-suggestion.ts`
+- `tests/contracts/fixtures/pricing.suggestion.accepted.v1.json`
+- `tests/contracts/pricing-suggestion-accepted.v1.contract.test.ts`
+- `tests/e2e/listing-registration.spec.ts`
+- `tests/e2e/photo-uploader-flow.spec.ts`
+- `tests/e2e/price-suggestion-card-flow.spec.ts`
 
 ### Change Log
 
 - 2026-04-22: Story 2.3 developer-ready context file created.
 - 2026-04-22: ATDD red-phase tests and checklist generated; story status set to `atdd-done`.
+- 2026-04-22: Implemented PriceSuggestionCard recommendation accept/edit confirmation flow; story status set to `review`.

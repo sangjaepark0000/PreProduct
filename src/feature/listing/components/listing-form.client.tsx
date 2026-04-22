@@ -30,6 +30,7 @@ import {
   ExtractionFieldEditor,
   type ExtractionReviewSession
 } from "@/feature/listing/components/extraction-field-editor.client";
+import { PriceSuggestionCard } from "@/feature/listing/components/price-suggestion-card.client";
 import type { AiExtractionResult } from "@/shared/contracts/ai-extraction";
 import type { AiExtractionReviewedV1 } from "@/shared/contracts/events/ai-extraction-reviewed.v1";
 
@@ -115,23 +116,6 @@ export function ListingForm({ action }: ListingFormProps) {
                 key={formResetKey}
                 values={state.values}
                 fieldErrors={state.fieldErrors}
-              />
-
-              <TextField
-                name="priceKrw"
-                label="가격 (원)"
-                defaultValue={state.values.priceKrw}
-                error={Boolean(state.fieldErrors.priceKrw)}
-                helperText={state.fieldErrors.priceKrw ?? "숫자만 입력해 주세요."}
-                fullWidth
-                type="number"
-                slotProps={{
-                  htmlInput: {
-                    min: 1,
-                    step: 1000,
-                    inputMode: "numeric"
-                  }
-                }}
               />
 
               <FormControl error={Boolean(state.fieldErrors.status)}>
@@ -326,6 +310,14 @@ function ListingDraftFields({ values, fieldErrors }: ListingDraftFieldsProps) {
           minRows={4}
         />
       </Stack>
+
+      <PriceSuggestionCard
+        title={title}
+        category={category}
+        keySpecificationsText={keySpecificationsText}
+        initialPriceKrw={values.priceKrw}
+        fieldError={fieldErrors.priceKrw}
+      />
     </>
   );
 }

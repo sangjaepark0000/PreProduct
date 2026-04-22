@@ -23,7 +23,8 @@ async function fillManualListingFields(
   await page.getByLabel("제목").fill(title);
   await page.getByLabel("카테고리").fill("카메라");
   await page.getByLabel("핵심 스펙").fill("바디 단품\n셔터 1200컷");
-  await page.getByLabel("가격 (원)").fill("880000");
+  await page.getByLabel("수동 가격 (원)").fill("880000");
+  await page.getByRole("button", { name: "수동 가격 확정" }).click();
   await page.getByLabel("판매중").check();
 }
 
@@ -186,7 +187,7 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
     );
-    await expect(page.getByLabel("가격 (원)")).toBeEditable();
+    await expect(page.getByLabel("수동 가격 (원)")).toBeEditable();
 
     await fillManualListingFields(page, title);
     await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
@@ -264,7 +265,10 @@ test.describe("PhotoUploader flow", () => {
     await expect(finalFields.getByLabel("핵심 스펙")).toHaveValue(
       "바디 단품\n셔터 1200컷"
     );
-    await expect(page.getByLabel("가격 (원)")).toHaveValue("880000");
+    await expect(page.getByLabel("가격 (원)", { exact: true })).toHaveValue(
+      "880000"
+    );
+    await expect(page.getByLabel("수동 가격 (원)")).toHaveValue("880000");
     await expect(page.getByLabel("판매중")).toBeChecked();
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
@@ -309,7 +313,10 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByLabel("제목")).toHaveValue(title);
     await expect(page.getByLabel("카테고리")).toHaveValue("카메라");
     await expect(page.getByLabel("핵심 스펙")).toHaveValue("바디 단품\n셔터 1200컷");
-    await expect(page.getByLabel("가격 (원)")).toHaveValue("880000");
+    await expect(page.getByLabel("가격 (원)", { exact: true })).toHaveValue(
+      "880000"
+    );
+    await expect(page.getByLabel("수동 가격 (원)")).toHaveValue("880000");
     await expect(page.getByLabel("판매중")).toBeChecked();
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
