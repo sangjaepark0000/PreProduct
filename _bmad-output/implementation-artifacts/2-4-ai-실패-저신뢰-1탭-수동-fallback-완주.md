@@ -1,6 +1,6 @@
 # Story 2.4: AI 실패/저신뢰 1탭 수동 fallback 완주
 
-Status: review
+Status: done
 
 ## Story
 
