@@ -1,14 +1,21 @@
 import { expect, test } from "@playwright/test";
 
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+
 test.describe("Story 1.2 red-phase prelisting status flow", () => {
+  test.skip(
+    !hasDatabaseUrl,
+    "DATABASE_URL is required for DB-backed prelisting status E2E tests."
+  );
+
   test("creates a listing with 프리리스팅 and edits it to 판매중 from the detail page", async ({
     page
   }) => {
-    const suffix = `${Date.now()}`;
+    const title = "아이폰 16 프로 red-phase-prelisting-status";
 
     await page.goto("/listings/new");
 
-    await page.getByLabel("제목").fill(`아이폰 16 프로 ${suffix}`);
+    await page.getByLabel("제목").fill(title);
     await page.getByLabel("카테고리").fill("스마트폰");
     await page.getByLabel("핵심 스펙").fill("256GB\n배터리 효율 99%");
     await page.getByLabel("가격 (원)").fill("1450000");

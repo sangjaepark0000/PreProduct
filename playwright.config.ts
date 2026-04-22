@@ -7,6 +7,14 @@ const isCi = Boolean(process.env.CI);
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const webServerCommand = process.env.PLAYWRIGHT_WEB_SERVER_COMMAND;
 
+function buildWebServerEnv(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string"
+    )
+  );
+}
+
 export default defineConfig({
   testDir: path.resolve("."),
   testMatch: [
@@ -46,6 +54,7 @@ export default defineConfig({
   webServer: webServerCommand
     ? {
         command: webServerCommand,
+        env: buildWebServerEnv(),
         url: baseURL,
         reuseExistingServer: !isCi,
         timeout: 120_000

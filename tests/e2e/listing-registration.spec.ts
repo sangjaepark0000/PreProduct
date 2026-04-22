@@ -2,11 +2,18 @@ import { expect, test } from "../support/fixtures/index.js";
 import { getListingById } from "../../src/domain/listing/listing.service";
 import { getListingRepository } from "../../src/infra/listing/listing.repository";
 
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+
 test.describe("Listing registration", () => {
+  test.skip(
+    !hasDatabaseUrl,
+    "DATABASE_URL is required for DB-backed listing registration E2E tests."
+  );
+
   test("surfaces required-field errors and recovers on the same screen", async ({
     page
   }) => {
-    const suffix = `${Date.now()}`;
+    const title = "맥북 프로 14 e2e-validation-recovery";
 
     await page.goto("/listings/new");
 
@@ -26,21 +33,18 @@ test.describe("Listing registration", () => {
       page.getByText("제목, 핵심 스펙, 가격을 수정한 뒤 다시 등록해 주세요.")
     ).toBeVisible();
 
-    await page.getByLabel("제목").fill(`맥북 프로 14 ${suffix}`);
+    await page.getByLabel("제목").fill(title);
     await page.getByLabel("핵심 스펙").fill("M4 Pro\n24GB RAM");
     await page.getByLabel("가격 (원)").fill("2850000");
     await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
 
     await expect(page).toHaveURL(/\/listings\/[0-9a-f-]+$/u);
-    await expect(page.getByTestId("listing-detail-title")).toHaveText(
-      `맥북 프로 14 ${suffix}`
-    );
+    await expect(page.getByTestId("listing-detail-title")).toHaveText(title);
   });
 
   test("creates a listing and opens the detail page", async ({ page }) => {
     const consoleMessages: string[] = [];
-    const suffix = `${Date.now()}`;
-    const title = `맥북 에어 M3 ${suffix}`;
+    const title = "맥북 에어 M3 e2e-create-detail";
 
     page.on("console", (message) => {
       consoleMessages.push(message.text());
