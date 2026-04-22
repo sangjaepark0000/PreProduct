@@ -26,6 +26,7 @@ import {
 
 type PhotoUploaderProps = {
   onDraftReady: (result: AiExtractionResult) => boolean;
+  onDraftInvalidated?: () => void;
   onFallback: () => void;
 };
 
@@ -123,7 +124,11 @@ function getStatusText(status: AiExtractionStatus, successMessage: string): stri
   return "상품 사진을 업로드하면 AI 초안 요청을 시작합니다.";
 }
 
-export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) {
+export function PhotoUploader({
+  onDraftReady,
+  onDraftInvalidated,
+  onFallback
+}: PhotoUploaderProps) {
   const [status, setStatus] = useState<AiExtractionStatus>("idle");
   const [uploadError, setUploadError] = useState<UploadError | null>(null);
   const [successMessage, setSuccessMessage] = useState(
@@ -172,6 +177,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     requestVersionRef.current = requestVersion;
     abortControllerRef.current = abortController;
     fallbackActiveRef.current = false;
+    onDraftInvalidated?.();
     setUploadError(null);
     setStatus("validating");
     await Promise.resolve();
@@ -268,6 +274,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     if (validationError) {
       invalidateCurrentRequest();
       fallbackActiveRef.current = false;
+      onDraftInvalidated?.();
       setUploadError(validationError);
       setStatus("error");
       return;

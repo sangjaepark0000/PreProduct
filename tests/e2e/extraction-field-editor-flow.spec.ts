@@ -156,6 +156,40 @@ test.describe("ExtractionFieldEditor flow", () => {
     await expect(page.getByTestId("extraction-field-editor")).toBeVisible();
   });
 
+  test("clears an unedited review draft when a later file selection is invalid", async ({
+    page
+  }) => {
+    await page.route("**/api/ai/extractions", async (route) => {
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: buildAiSuccessBody(meta, "req-story-2-2-invalid-clears-review")
+      });
+    });
+
+    await page.goto("/listings/new");
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "first-photo.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("fake-jpeg-bytes")
+    });
+
+    await expect(page.getByTestId("extraction-field-editor")).toBeVisible();
+
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "product.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("not an image")
+    });
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: "지원하지 않는 파일 형식" })
+    ).toContainText("지원하지 않는 파일 형식");
+    await expect(page.getByTestId("extraction-field-editor")).toHaveCount(0);
+  });
+
   test("does not replace in-progress review edits when another AI draft arrives", async ({
     page
   }) => {

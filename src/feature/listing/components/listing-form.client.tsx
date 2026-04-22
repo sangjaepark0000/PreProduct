@@ -220,10 +220,20 @@ function ListingDraftFields({ values, fieldErrors }: ListingDraftFieldsProps) {
     return true;
   }
 
+  function clearCleanReviewSession() {
+    if (reviewDirtyRef.current) {
+      return;
+    }
+
+    setActiveReviewSession(null);
+    setReviewStatusMessage("");
+  }
+
   return (
     <>
       <PhotoUploader
         onDraftReady={prepareAiDraftReview}
+        onDraftInvalidated={clearCleanReviewSession}
         onFallback={() => {
           reviewDirtyRef.current = false;
           setActiveReviewSession(null);
