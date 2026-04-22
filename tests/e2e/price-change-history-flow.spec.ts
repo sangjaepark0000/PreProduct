@@ -1,11 +1,12 @@
 import { expect, test } from "../support/fixtures/index.js";
 import { getPrismaClient } from "@/infra/prisma/prisma.client";
+import { randomUUID } from "node:crypto";
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
-const listingId = "0d3f4b7c-16ca-4a0e-a8bf-7f0f1d6aa2af";
-const appliedAt = new Date("2026-04-22T02:00:00.000Z");
+const olderAppliedAt = new Date("2026-04-22T02:00:00.000Z");
+const newerAppliedAt = new Date("2026-04-23T02:00:00.000Z");
 
-async function seedAppliedPriceChange() {
+async function seedListing(listingId: string, priceKrw = 1_530_000) {
   const prisma = getPrismaClient();
 
   await prisma.autoAdjustExecution.deleteMany({
@@ -24,29 +25,51 @@ async function seedAppliedPriceChange() {
       title: "ATDD 가격 변경 이력 매물",
       category: "노트북",
       keySpecifications: ["M4 Pro", "24GB RAM"],
-      priceKrw: 1_702_000,
+      priceKrw,
       initialStatus: "판매중",
       currentStatus: "판매중"
     }
   });
+}
+
+async function seedAppliedPriceChanges(listingId: string) {
+  const prisma = getPrismaClient();
+
+  await seedListing(listingId);
+
   await prisma.autoAdjustExecution.create({
     data: {
       listingId,
-      runKey: "run-story-3-3-history",
-      traceId: "trace-story-3-3-history",
+      runKey: "run-story-3-3-history-older",
+      traceId: "trace-story-3-3-history-older",
       ruleRevision: "2026-04-08T02:00:00.000Z",
       status: "applied",
       reasonCode: "due-rule-applied",
       beforePriceKrw: 1_850_000,
       afterPriceKrw: 1_702_000,
-      evaluationAt: appliedAt,
-      appliedAt,
-      executedAt: appliedAt
+      evaluationAt: olderAppliedAt,
+      appliedAt: olderAppliedAt,
+      executedAt: olderAppliedAt
+    }
+  });
+  await prisma.autoAdjustExecution.create({
+    data: {
+      listingId,
+      runKey: "run-story-3-3-history-newer",
+      traceId: "trace-story-3-3-history-newer",
+      ruleRevision: "2026-04-08T02:00:00.000Z",
+      status: "applied",
+      reasonCode: "retry-recovered",
+      beforePriceKrw: 1_702_000,
+      afterPriceKrw: 1_530_000,
+      evaluationAt: newerAppliedAt,
+      appliedAt: newerAppliedAt,
+      executedAt: newerAppliedAt
     }
   });
 }
 
-async function cleanupAppliedPriceChange() {
+async function cleanupListing(listingId: string) {
   const prisma = getPrismaClient();
 
   await prisma.autoAdjustExecution.deleteMany({
@@ -62,38 +85,70 @@ async function cleanupAppliedPriceChange() {
 }
 
 test.describe("Price change history flow", () => {
+  let listingId: string;
+
   test.skip(
     !hasDatabaseUrl,
     "DATABASE_URL is required for DB-backed price change history E2E tests."
   );
 
   test.beforeEach(async () => {
-    await seedAppliedPriceChange();
+    listingId = randomUUID();
   });
 
   test.afterEach(async () => {
-    await cleanupAppliedPriceChange();
+    await cleanupListing(listingId);
   });
 
-  test("shows before and after price, applied time, and reason for an existing adjustment", async ({
+  test("shows newest history first with before and after price, applied time, and reason", async ({
     page
   }) => {
+    await seedAppliedPriceChanges(listingId);
+
     await page.goto(`/listings/${listingId}/price-change-history`);
 
     await expect(page.getByTestId("price-change-history-page")).toBeVisible();
     await expect(page.getByRole("heading", { name: "가격 변경 이력" })).toBeVisible();
-    await expect(page.getByTestId("price-change-history-row")).toHaveCount(1);
-    await expect(page.getByTestId("price-change-history-before-price")).toContainText(
-      "1,850,000"
-    );
-    await expect(page.getByTestId("price-change-history-after-price")).toContainText(
+    const rows = page.getByTestId("price-change-history-row");
+
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0).getByTestId("price-change-history-before-price")).toContainText(
       "1,702,000"
     );
-    await expect(page.getByTestId("price-change-history-applied-at")).toContainText(
+    await expect(rows.nth(0).getByTestId("price-change-history-after-price")).toContainText(
+      "1,530,000"
+    );
+    await expect(rows.nth(0).getByTestId("price-change-history-applied-at")).toContainText(
+      "2026-04-23"
+    );
+    await expect(rows.nth(0).getByTestId("price-change-history-reason")).toContainText(
+      "retry-recovered"
+    );
+    await expect(rows.nth(1).getByTestId("price-change-history-before-price")).toContainText(
+      "1,850,000"
+    );
+    await expect(rows.nth(1).getByTestId("price-change-history-after-price")).toContainText(
+      "1,702,000"
+    );
+    await expect(rows.nth(1).getByTestId("price-change-history-applied-at")).toContainText(
       "2026-04-22"
     );
-    await expect(page.getByTestId("price-change-history-reason")).toContainText(
+    await expect(rows.nth(1).getByTestId("price-change-history-reason")).toContainText(
       "due-rule-applied"
     );
+  });
+
+  test("shows an empty state when a listing has no applied price changes", async ({
+    page
+  }) => {
+    await seedListing(listingId, 1_850_000);
+
+    await page.goto(`/listings/${listingId}/price-change-history`);
+
+    await expect(page.getByTestId("price-change-history-empty-state")).toBeVisible();
+    await expect(page.getByTestId("price-change-history-empty-state")).toContainText(
+      "아직 가격 변경 이력이 없습니다."
+    );
+    await expect(page.getByTestId("price-change-history-row")).toHaveCount(0);
   });
 });

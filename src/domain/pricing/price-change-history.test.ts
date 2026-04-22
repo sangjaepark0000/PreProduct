@@ -18,11 +18,18 @@ describe("price change history projection", () => {
   });
 
   it("derives the minimal signal from the same applied adjustment timestamp and reason", () => {
-    expect(buildMinimalSignalFromPriceChange(appliedSource)).toEqual({
+    const signal = buildMinimalSignalFromPriceChange(appliedSource);
+
+    expect(signal).toEqual({
       listingId: appliedSource.listingId,
       updatedAt: appliedSource.appliedAt,
       reasonCode: appliedSource.reasonCode
     });
+    expect(Object.keys(signal).sort()).toEqual([
+      "listingId",
+      "reasonCode",
+      "updatedAt"
+    ]);
   });
 
   it("rejects unknown price-change reasons before rendering history", () => {

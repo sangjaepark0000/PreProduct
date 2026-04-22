@@ -25,9 +25,17 @@ type PriceChangeHistoryPersistenceClient = {
           not: null;
         };
       };
-      orderBy: {
-        appliedAt: "desc";
-      };
+      orderBy: [
+        {
+          appliedAt: "desc";
+        },
+        {
+          createdAt: "desc";
+        },
+        {
+          id: "desc";
+        }
+      ];
       select: {
         listingId: true;
         reasonCode: true;
@@ -81,9 +89,17 @@ async function findAppliedRecords(
         not: null
       }
     },
-    orderBy: {
-      appliedAt: "desc"
-    },
+    orderBy: [
+      {
+        appliedAt: "desc"
+      },
+      {
+        createdAt: "desc"
+      },
+      {
+        id: "desc"
+      }
+    ],
     select: {
       listingId: true,
       reasonCode: true,

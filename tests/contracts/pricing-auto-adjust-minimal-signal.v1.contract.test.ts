@@ -7,6 +7,11 @@ describe("pricing.auto_adjust minimal signal v1 contract", () => {
     expect(pricingAutoAdjustMinimalSignalV1Schema.parse(fixture)).toEqual(
       fixture
     );
+    expect(Object.keys(fixture).sort()).toEqual([
+      "listingId",
+      "reasonCode",
+      "updatedAt"
+    ]);
   });
 
   it("rejects extra mutable price fields", () => {
@@ -15,6 +20,15 @@ describe("pricing.auto_adjust minimal signal v1 contract", () => {
         ...fixture,
         beforePriceKrw: 1_850_000,
         afterPriceKrw: 1_702_000
+      })
+    ).toThrow();
+  });
+
+  it("rejects applied history timestamps that are not part of the signal contract", () => {
+    expect(() =>
+      pricingAutoAdjustMinimalSignalV1Schema.parse({
+        ...fixture,
+        appliedAt: fixture.updatedAt
       })
     ).toThrow();
   });

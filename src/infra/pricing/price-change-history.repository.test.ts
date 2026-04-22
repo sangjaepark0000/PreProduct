@@ -23,6 +23,13 @@ describe("price change history repository", () => {
     mockFindManyExecution.mockResolvedValueOnce([
       {
         listingId,
+        reasonCode: "retry-recovered",
+        beforePriceKrw: 1_702_000,
+        afterPriceKrw: 1_530_000,
+        appliedAt: new Date("2026-04-23T02:00:00.000Z")
+      },
+      {
+        listingId,
         reasonCode: "due-rule-applied",
         beforePriceKrw: 1_850_000,
         afterPriceKrw: 1_702_000,
@@ -32,6 +39,13 @@ describe("price change history repository", () => {
     const repository = createPriceChangeHistoryRepository(prismaClient);
 
     await expect(repository.listForListing(listingId)).resolves.toEqual([
+      {
+        listingId,
+        beforePriceKrw: 1_702_000,
+        afterPriceKrw: 1_530_000,
+        appliedAt: "2026-04-23T02:00:00.000Z",
+        reasonCode: "retry-recovered"
+      },
       {
         listingId,
         beforePriceKrw: 1_850_000,
@@ -48,9 +62,17 @@ describe("price change history repository", () => {
           not: null
         }
       },
-      orderBy: {
-        appliedAt: "desc"
-      },
+      orderBy: [
+        {
+          appliedAt: "desc"
+        },
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
       select: {
         listingId: true,
         reasonCode: true,

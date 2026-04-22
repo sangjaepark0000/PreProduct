@@ -17,6 +17,11 @@ describe("pricingAutoAdjustMinimalSignalV1Schema", () => {
     expect(buildPricingAutoAdjustMinimalSignalV1(canonicalSignal)).toEqual(
       canonicalSignal
     );
+    expect(Object.keys(canonicalSignal).sort()).toEqual([
+      "listingId",
+      "reasonCode",
+      "updatedAt"
+    ]);
   });
 
   it("rejects mutable price snapshot fields", () => {
@@ -25,6 +30,17 @@ describe("pricingAutoAdjustMinimalSignalV1Schema", () => {
         ...canonicalSignal,
         beforePriceKrw: 1_850_000,
         afterPriceKrw: 1_702_000
+      })
+    ).toThrow();
+  });
+
+  it("rejects full history-row fields that belong outside the minimal signal", () => {
+    expect(() =>
+      pricingAutoAdjustMinimalSignalV1Schema.parse({
+        ...canonicalSignal,
+        beforePriceKrw: 1_850_000,
+        afterPriceKrw: 1_702_000,
+        appliedAt: canonicalSignal.updatedAt
       })
     ).toThrow();
   });
