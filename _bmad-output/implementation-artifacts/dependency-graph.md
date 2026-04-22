@@ -1,5 +1,5 @@
 # Story Dependency Graph
-_Last updated: 2026-04-22T14:15:59.1605442+09:00_
+_Last updated: 2026-04-22T15:21:59.6630451+09:00_
 
 ## Stories
 
@@ -15,11 +15,11 @@ _Last updated: 2026-04-22T14:15:59.1605442+09:00_
 | 2.4 | 2 | AI 실패/저신뢰 1탭 수동 fallback 완주 | done | #14 | #26 | merged | 2.1 | ✅ Yes (done) |
 | 3.1 | 3 | 자동 가격조정 규칙 설정 | done | #15 | #29 | merged | none | ✅ Yes (done) |
 | 3.2 | 3 | 규칙 기반 자동 가격조정 실행 및 사유 기록 | done | #16 | #30 | merged | 3.1 | ✅ Yes (done) |
-| 3.3 | 3 | 가격 변경 이력 조회 및 최소 신호 수집 | backlog | #17 | — | — | 3.2 | ✅ Yes |
-| 4.1 | 4 | MVP 핵심 이벤트 4종 계측 | backlog | #18 | — | — | 2.3, 3.2 | ❌ No (epic 3 not complete) |
-| 4.2 | 4 | KPI 및 가드레일 모니터링 화면 | backlog | #19 | — | — | 4.1 | ❌ No (epic 3 not complete) |
-| 4.3 | 4 | Go/Hold/Stop 판정 및 Feature Flag 운영 | backlog | #20 | — | — | 4.2 | ❌ No (epic 3 not complete) |
-| 4.4 | 4 | 정책·신뢰 안내 접근성과 비차단 처리 | backlog | #21 | — | — | none | ❌ No (epic 3 not complete) |
+| 3.3 | 3 | 가격 변경 이력 조회 및 최소 신호 수집 | done | #17 | #31 | merged | 3.2 | ✅ Yes (done) |
+| 4.1 | 4 | MVP 핵심 이벤트 4종 계측 | backlog | #18 | — | — | 2.3, 3.2 | ✅ Yes |
+| 4.2 | 4 | KPI 및 가드레일 모니터링 화면 | backlog | #19 | — | — | 4.1 | ❌ No (4.1 not merged) |
+| 4.3 | 4 | Go/Hold/Stop 판정 및 Feature Flag 운영 | backlog | #20 | — | — | 4.2 | ❌ No (4.2 not merged) |
+| 4.4 | 4 | 정책·신뢰 안내 접근성과 비차단 처리 | backlog | #21 | — | — | none | ✅ Yes |
 | 5.1 | 5 | 프리리스팅 탐색 화면 제공 (Deferred-P2) | backlog | #22 | — | — | none | ❌ No (epic 4 not complete) |
 | 5.2 | 5 | 관심 신호(찜/관심등록) 남기기 (Deferred-P2) | backlog | #23 | — | — | 5.1 | ❌ No (epic 4 not complete) |
 | 5.3 | 5 | 관심 신호 기반 판매자 업데이트 우선순위 반영 (Deferred-P2) | backlog | #24 | — | — | 5.2 | ❌ No (epic 4 not complete) |
@@ -42,4 +42,4 @@ _Last updated: 2026-04-22T14:15:59.1605442+09:00_
 
 ## Notes
 
-Dependency mapping favors parallel work only where the story acceptance criteria are independent and lower epic gates are satisfied. Stories 2.1, 2.2, 2.3, and 2.4 are merged via PRs #25, #27, #28, and #26, so Epic 2 is complete. Story 3.1 merged via PR #29 and Story 3.2 merged via PR #30, making Story 3.3 the next ready backlog story. Epic 4 depends on event sources from earlier epics, with Story 4.4 functionally independent inside the epic but still blocked by lower-epic completion rules. Epic 5 remains deferred and blocked until Epic 4 is complete.
+Dependency mapping favors parallel work only where the story acceptance criteria are independent and lower epic gates are satisfied. Stories 2.1, 2.2, 2.3, and 2.4 are merged via PRs #25, #27, #28, and #26, so Epic 2 is complete. Story 3.1 merged via PR #29, Story 3.2 merged via PR #30, and Story 3.3 merged via PR #31, completing Epic 3. Epic 4 is now the current epic; Stories 4.1 and 4.4 are ready to start, while Epic 5 remains deferred until Epic 4 is complete.
