@@ -1,9 +1,14 @@
 import { expect, test } from "../support/fixtures/index.js";
 
-async function fillConfirmedListingBasis(page: import("@playwright/test").Page) {
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+
+async function fillConfirmedListingBasis(
+  page: import("@playwright/test").Page,
+  title = "ATDD 맥북 프로 M3"
+) {
   const finalFields = page.getByTestId("listing-final-fields");
 
-  await finalFields.getByLabel("제목", { exact: true }).fill("ATDD 맥북 프로 M3");
+  await finalFields.getByLabel("제목", { exact: true }).fill(title);
   await finalFields.getByLabel("카테고리", { exact: true }).fill("노트북");
   await finalFields
     .getByLabel("핵심 스펙", { exact: true })
@@ -11,6 +16,28 @@ async function fillConfirmedListingBasis(page: import("@playwright/test").Page) 
 }
 
 test.describe("PriceSuggestionCard flow", () => {
+  test("submits the accepted suggested price as the final listing price", async ({
+    page
+  }) => {
+    test.skip(
+      !hasDatabaseUrl,
+      "DATABASE_URL is required for DB-backed price submission E2E tests."
+    );
+
+    const title = "ATDD 맥북 프로 M3 price-suggestion-submit";
+
+    await page.goto("/listings/new");
+    await fillConfirmedListingBasis(page, title);
+    await page.getByTestId("price-suggestion-accept-button").click();
+    await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
+
+    await expect(page).toHaveURL(/\/listings\/[0-9a-f-]+$/u);
+    await expect(page.getByTestId("listing-detail-title")).toHaveText(title);
+    await expect(page.getByTestId("listing-detail-price")).toHaveText(
+      "1,240,000원"
+    );
+  });
+
   test("accepts the suggested price and prepares an accepted event", async ({
     page
   }) => {
