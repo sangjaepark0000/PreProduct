@@ -33,7 +33,7 @@ const input = {
   runKey: "run-20260422-001",
   traceId: "trace-auto-adjust-20260422",
   requestedAt: "2026-04-22T02:00:00.000Z",
-  ruleRevision: "2026-04-22T00:00:00.000Z",
+  ruleRevision: "2026-04-08T02:00:00.000Z",
   currentPriceKrw: 1_850_000
 };
 
@@ -46,7 +46,7 @@ const listingWithRule = {
     discountRatePercent: 8,
     floorPriceKrw: 1_200_000,
     enabled: true,
-    updatedAt: new Date("2026-04-22T00:00:00.000Z")
+    updatedAt: new Date(input.ruleRevision)
   }
 };
 
@@ -174,6 +174,46 @@ describe("auto-adjust execution repository", () => {
     );
   });
 
+  it("skips a scheduler request before the rule due instant", async () => {
+    mockFindUniqueListing.mockResolvedValueOnce({
+      ...listingWithRule,
+      autoAdjustRule: {
+        ...listingWithRule.autoAdjustRule,
+        updatedAt: new Date("2026-04-20T02:00:00.000Z")
+      }
+    });
+    const repository = createAutoAdjustExecutionRepository(prismaClient);
+
+    await expect(
+      repository.executeRun({
+        ...input,
+        ruleRevision: "2026-04-20T02:00:00.000Z"
+      })
+    ).resolves.toMatchObject({
+      status: "skipped",
+      skipReason: "not-due",
+      evaluationAt: input.requestedAt
+    });
+    expect(mockUpdateListing).not.toHaveBeenCalled();
+  });
+
+  it("skips a stale scheduler rule revision before applying a price change", async () => {
+    const repository = createAutoAdjustExecutionRepository(prismaClient);
+
+    await expect(
+      repository.executeRun({
+        ...input,
+        ruleRevision: "2026-04-07T02:00:00.000Z"
+      })
+    ).resolves.toMatchObject({
+      status: "skipped",
+      skipReason: "stale-rule",
+      ruleRevision: "2026-04-07T02:00:00.000Z",
+      activeRuleRevision: input.ruleRevision
+    });
+    expect(mockUpdateListing).not.toHaveBeenCalled();
+  });
+
   it("recovers a partial-failure run key into a single applied result", async () => {
     mockCreateExecution.mockRejectedValueOnce(
       Object.assign(new Error("Unique constraint failed"), {
@@ -208,5 +248,58 @@ describe("auto-adjust execution repository", () => {
       applyCount: 1
     });
     expect(mockUpdateListing).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers an already-applied partial failure without applying the discount again", async () => {
+    mockCreateExecution.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002"
+      })
+    );
+    mockFindUniqueExecution.mockResolvedValueOnce({
+      id: "execution-id",
+      listingId: input.listingId,
+      runKey: input.runKey,
+      traceId: input.traceId,
+      ruleRevision: input.ruleRevision,
+      status: "partial-failure",
+      reasonCode: null,
+      skipReason: null,
+      beforePriceKrw: 1_850_000,
+      afterPriceKrw: 1_702_000,
+      eventId: null,
+      event: null,
+      evaluationAt: new Date(input.requestedAt),
+      appliedAt: new Date("2026-04-22T01:59:59.000Z"),
+      executedAt: new Date(input.requestedAt),
+      duplicateCount: 0,
+      createdAt: new Date(input.requestedAt),
+      updatedAt: new Date(input.requestedAt)
+    });
+    mockFindUniqueListing.mockResolvedValueOnce({
+      ...listingWithRule,
+      priceKrw: 1_702_000
+    });
+    const repository = createAutoAdjustExecutionRepository(prismaClient);
+
+    await expect(repository.executeRun(input)).resolves.toMatchObject({
+      status: "applied",
+      reasonCode: "retry-recovered",
+      beforePriceKrw: 1_850_000,
+      afterPriceKrw: 1_702_000,
+      appliedAt: "2026-04-22T01:59:59.000Z",
+      applyCount: 1
+    });
+    expect(mockUpdateListing).not.toHaveBeenCalled();
+    expect(mockUpdateExecution).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "applied",
+          reasonCode: "retry-recovered",
+          beforePriceKrw: 1_850_000,
+          afterPriceKrw: 1_702_000
+        })
+      })
+    );
   });
 });

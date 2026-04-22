@@ -14,10 +14,32 @@ const requestPayload = {
   ruleRevision: "rule-20260422-001",
   currentPriceKrw: 1_850_000
 };
+const schedulerToken = "test-auto-adjust-scheduler-token";
+
+function schedulerRequest(body: unknown, token = schedulerToken): Request {
+  return new Request("http://localhost/api/pricing/auto-adjust", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(body)
+  });
+}
 
 describe("pricing auto-adjust route", () => {
+  const originalSchedulerToken = process.env.AUTO_ADJUST_SCHEDULER_TOKEN;
+
+  beforeEach(() => {
+    process.env.AUTO_ADJUST_SCHEDULER_TOKEN = schedulerToken;
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
+    if (originalSchedulerToken === undefined) {
+      delete process.env.AUTO_ADJUST_SCHEDULER_TOKEN;
+    } else {
+      process.env.AUTO_ADJUST_SCHEDULER_TOKEN = originalSchedulerToken;
+    }
   });
 
   it("runs a due execution through the scheduler-facing route and returns the reason log", async () => {
@@ -35,12 +57,7 @@ describe("pricing auto-adjust route", () => {
       eventId: "fdd23504-9420-5d9b-8f56-9dd000f54344"
     });
 
-    const response = await POST(
-      new Request("http://localhost/api/pricing/auto-adjust", {
-        method: "POST",
-        body: JSON.stringify(requestPayload)
-      })
-    );
+    const response = await POST(schedulerRequest(requestPayload));
 
     expect(response.status).toBe(202);
     expect(runAutoAdjustExecution).toHaveBeenCalledWith(requestPayload);
@@ -64,12 +81,9 @@ describe("pricing auto-adjust route", () => {
       duplicateOfRunKey: requestPayload.runKey
     });
 
-    const response = await POST(
-      new Request("http://localhost/api/pricing/auto-adjust", {
-        method: "POST",
-        body: JSON.stringify(requestPayload)
-      })
-    );
+    const response = await POST(schedulerRequest(requestPayload));
+
+    expect(runAutoAdjustExecution).toHaveBeenCalledWith(requestPayload);
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -93,12 +107,9 @@ describe("pricing auto-adjust route", () => {
     );
 
     const response = await POST(
-      new Request("http://localhost/api/pricing/auto-adjust", {
-        method: "POST",
-        body: JSON.stringify({
-          ...requestPayload,
-          runKey: ""
-        })
+      schedulerRequest({
+        ...requestPayload,
+        runKey: ""
       })
     );
 
@@ -106,6 +117,32 @@ describe("pricing auto-adjust route", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "INVALID_REQUEST"
+      }
+    });
+  });
+
+  it("rejects scheduler calls without the configured bearer token", async () => {
+    const response = await POST(schedulerRequest(requestPayload, "wrong-token"));
+
+    expect(response.status).toBe(401);
+    expect(runAutoAdjustExecution).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "UNAUTHORIZED"
+      }
+    });
+  });
+
+  it("fails closed when scheduler authorization is not configured", async () => {
+    delete process.env.AUTO_ADJUST_SCHEDULER_TOKEN;
+
+    const response = await POST(schedulerRequest(requestPayload));
+
+    expect(response.status).toBe(503);
+    expect(runAutoAdjustExecution).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "SCHEDULER_AUTH_NOT_CONFIGURED"
       }
     });
   });

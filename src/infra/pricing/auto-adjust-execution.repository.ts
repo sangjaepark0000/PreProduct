@@ -189,6 +189,13 @@ function toDuplicateResult(args: {
   };
 }
 
+function getRuleDueAt(rule: { periodDays: number; updatedAt: string }): string {
+  const dueAt = new Date(rule.updatedAt);
+  dueAt.setUTCDate(dueAt.getUTCDate() + rule.periodDays);
+
+  return dueAt.toISOString();
+}
+
 function toRuleSnapshot(listing: ListingWithRuleRecord) {
   if (!listing.autoAdjustRule) {
     return null;
@@ -200,6 +207,20 @@ function toRuleSnapshot(listing: ListingWithRuleRecord) {
       updatedAt: listing.autoAdjustRule.updatedAt.toISOString()
     }),
     ruleRevision: listing.autoAdjustRule.updatedAt.toISOString()
+  };
+}
+
+function toRequestedRuleSnapshot(args: {
+  activeRule: ReturnType<typeof toRuleSnapshot>;
+  requestedRuleRevision: string;
+}) {
+  if (!args.activeRule) {
+    return null;
+  }
+
+  return {
+    ...args.activeRule,
+    ruleRevision: args.requestedRuleRevision
   };
 }
 
@@ -267,12 +288,13 @@ async function persistResult(args: {
   input: ExecuteAutoAdjustRunInput;
   result: AutoAdjustExecutionResult;
   event?: PricingAutoAdjustAppliedV1;
+  skipListingUpdate?: boolean;
 }): Promise<void> {
   if (args.result.status === "duplicate") {
     return;
   }
 
-  if (args.result.status === "applied") {
+  if (args.result.status === "applied" && !args.skipListingUpdate) {
     await args.transaction.listing.update({
       where: {
         id: args.input.listingId
@@ -319,6 +341,34 @@ async function persistResult(args: {
   });
 }
 
+function recoverAlreadyAppliedPartialFailure(args: {
+  input: ExecuteAutoAdjustRunInput;
+  existing: AutoAdjustExecutionRecord;
+}): AutoAdjustExecutionRepositoryResult | null {
+  if (
+    args.existing.status !== "partial-failure" ||
+    !args.existing.appliedAt ||
+    args.existing.beforePriceKrw === null ||
+    args.existing.afterPriceKrw === null
+  ) {
+    return null;
+  }
+
+  return {
+    listingId: args.input.listingId,
+    runKey: args.input.runKey,
+    traceId: args.input.traceId,
+    ruleRevision: args.existing.ruleRevision,
+    evaluationAt: args.input.requestedAt,
+    status: "applied",
+    reasonCode: "retry-recovered",
+    beforePriceKrw: args.existing.beforePriceKrw,
+    afterPriceKrw: args.existing.afterPriceKrw,
+    appliedAt: args.existing.appliedAt.toISOString(),
+    applyCount: 1
+  };
+}
+
 export function createAutoAdjustExecutionRepository(
   prismaClient: AutoAdjustExecutionPersistenceClient
 ): AutoAdjustExecutionRepository {
@@ -351,43 +401,54 @@ export function createAutoAdjustExecutionRepository(
             }
           }
         });
-        const rule = listing ? toRuleSnapshot(listing) : null;
-        const activeRuleRevision = rule?.ruleRevision ?? null;
+        const activeRule = listing ? toRuleSnapshot(listing) : null;
+        const rule = toRequestedRuleSnapshot({
+          activeRule,
+          requestedRuleRevision: input.ruleRevision
+        });
+        const activeRuleRevision = activeRule?.ruleRevision ?? null;
+        const dueAt = activeRule ? getRuleDueAt(activeRule) : input.requestedAt;
+        const recoveredPartial =
+          existing ?
+            recoverAlreadyAppliedPartialFailure({ input, existing })
+          : null;
         const result = evaluateAutoAdjustExecution({
           listingId: input.listingId,
           runKey: input.runKey,
           traceId: input.traceId,
-          dueAt: input.requestedAt,
+          dueAt,
           executedAt: input.requestedAt,
           currentPriceKrw: listing?.priceKrw ?? input.currentPriceKrw,
-          rule,
+          rule: recoveredPartial ? null : rule,
           activeRuleRevision,
           previousAttempt: existing ? toPreviousAttempt(existing) : null
         });
+        const finalResult = recoveredPartial ?? result;
         const event =
-          result.status === "applied"
+          finalResult.status === "applied"
             ? buildPricingAutoAdjustAppliedV1({
-                listingId: result.listingId,
-                ruleRevision: result.ruleRevision ?? input.ruleRevision,
-                runKey: result.runKey,
-                traceId: result.traceId,
-                occurredAt: result.appliedAt,
-                beforePriceKrw: result.beforePriceKrw,
-                afterPriceKrw: result.afterPriceKrw,
-                reasonCode: result.reasonCode,
-                appliedAt: result.appliedAt
+                listingId: finalResult.listingId,
+                ruleRevision: finalResult.ruleRevision ?? input.ruleRevision,
+                runKey: finalResult.runKey,
+                traceId: finalResult.traceId,
+                occurredAt: finalResult.appliedAt,
+                beforePriceKrw: finalResult.beforePriceKrw,
+                afterPriceKrw: finalResult.afterPriceKrw,
+                reasonCode: finalResult.reasonCode,
+                appliedAt: finalResult.appliedAt
               })
             : undefined;
 
         await persistResult({
           transaction,
           input,
-          result,
-          event
+          result: finalResult,
+          event,
+          skipListingUpdate: recoveredPartial !== null
         });
 
         return {
-          ...result,
+          ...finalResult,
           ...(event ? { event, eventId: event.eventId } : {})
         };
       });

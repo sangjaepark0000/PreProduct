@@ -3,7 +3,53 @@ import { ZodError } from "zod";
 
 import { runAutoAdjustExecution } from "@/feature/pricing/auto-adjust-execution.runner";
 
+function getBearerToken(request: Request): string | null {
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  return authorization.slice("Bearer ".length).trim();
+}
+
+function authorizeSchedulerRequest(request: Request): NextResponse | null {
+  const expectedToken = process.env.AUTO_ADJUST_SCHEDULER_TOKEN?.trim();
+
+  if (!expectedToken) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "SCHEDULER_AUTH_NOT_CONFIGURED",
+          message: "Auto-adjust scheduler token is not configured."
+        }
+      },
+      { status: 503 }
+    );
+  }
+
+  if (getBearerToken(request) !== expectedToken) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Auto-adjust scheduler authorization failed."
+        }
+      },
+      { status: 401 }
+    );
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
+  const authorizationFailure = authorizeSchedulerRequest(request);
+
+  if (authorizationFailure) {
+    return authorizationFailure;
+  }
+
   let body: unknown;
 
   try {
