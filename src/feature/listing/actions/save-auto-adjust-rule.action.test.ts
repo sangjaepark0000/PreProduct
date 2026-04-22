@@ -88,6 +88,35 @@ describe("handleSaveAutoAdjustRuleSubmission", () => {
     ]);
   });
 
+  it("keeps attempted invalid values when no active rule exists yet", async () => {
+    const result = await handleSaveAutoAdjustRuleSubmission(
+      {
+        saveAutoAdjustRule: async () => {
+          throw new Error("should not be called");
+        }
+      },
+      listingId,
+      1_850_000,
+      createInitialSaveAutoAdjustRuleFormState(null),
+      buildFormData({
+        periodDays: "0",
+        discountRatePercent: "101",
+        floorPriceKrw: "0"
+      })
+    );
+
+    expect(result.submissionStatus).toBe("error");
+    expect(result.values).toEqual({
+      periodDays: "0",
+      discountRatePercent: "101",
+      floorPriceKrw: "0"
+    });
+    expect(result.activeRule).toBeNull();
+    expect(result.recoveryGuide).toContain(
+      "1일 이상 365일 이하의 정수로 다시 입력해 주세요."
+    );
+  });
+
   it("keeps the last valid rule when persistence is retryable", async () => {
     const result = await handleSaveAutoAdjustRuleSubmission(
       {
@@ -111,4 +140,3 @@ describe("handleSaveAutoAdjustRuleSubmission", () => {
     expect(result.activeRule?.floorPriceKrw).toBe("1200000");
   });
 });
-

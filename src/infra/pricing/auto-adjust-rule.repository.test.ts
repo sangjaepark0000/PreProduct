@@ -63,6 +63,47 @@ describe("autoAdjustRule.repository", () => {
     });
   });
 
+  it("reads the active rule used to prefill the rule setup form", async () => {
+    const repository = createAutoAdjustRuleRepository(mockPrismaClient);
+
+    mockFindUnique.mockResolvedValueOnce({
+      listingId: "916df0fd-cc73-48cb-84e9-837c9748c968",
+      periodDays: 21,
+      discountRatePercent: 5,
+      floorPriceKrw: 1_100_000,
+      enabled: true,
+      updatedAt: new Date("2026-04-22T00:10:00.000Z")
+    });
+
+    await expect(
+      repository.findActiveByListingId("916df0fd-cc73-48cb-84e9-837c9748c968")
+    ).resolves.toMatchObject({
+      listingId: "916df0fd-cc73-48cb-84e9-837c9748c968",
+      periodDays: 21,
+      discountRatePercent: 5,
+      floorPriceKrw: 1_100_000,
+      enabled: true,
+      updatedAt: "2026-04-22T00:10:00.000Z"
+    });
+  });
+
+  it("does not expose disabled rules as active prefill state", async () => {
+    const repository = createAutoAdjustRuleRepository(mockPrismaClient);
+
+    mockFindUnique.mockResolvedValueOnce({
+      listingId: "916df0fd-cc73-48cb-84e9-837c9748c968",
+      periodDays: 21,
+      discountRatePercent: 5,
+      floorPriceKrw: 1_100_000,
+      enabled: false,
+      updatedAt: new Date("2026-04-22T00:10:00.000Z")
+    });
+
+    await expect(
+      repository.findActiveByListingId("916df0fd-cc73-48cb-84e9-837c9748c968")
+    ).resolves.toBeNull();
+  });
+
   it("returns null when the listing foreign key no longer exists", async () => {
     const repository = createAutoAdjustRuleRepository(mockPrismaClient);
 
@@ -102,4 +143,3 @@ describe("autoAdjustRule.repository", () => {
     ).rejects.toBeInstanceOf(RetryableAutoAdjustRuleSaveError);
   });
 });
-

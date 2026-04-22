@@ -9,90 +9,92 @@ lastStep: "step-04-generate-report"
 lastSaved: "2026-04-22"
 workflowType: "testarch-test-review"
 inputDocuments:
-  - "_bmad-output/implementation-artifacts/2-3-PriceSuggestionCard-기반-추천가-수용-수정-확정.md"
-  - "_bmad-output/test-artifacts/atdd-checklist-2.3.md"
+  - "_bmad-output/implementation-artifacts/3-1-자동-가격조정-규칙-설정.md"
+  - "_bmad-output/test-artifacts/test-design-epic-3.md"
+  - "_bmad-output/test-artifacts/red-phase/story-3-1/atdd-checklist-3-1-auto-price-adjustment-rule-setup.md"
   - "playwright.config.ts"
   - "package.json"
-  - "tests/e2e/price-suggestion-card-flow.spec.ts"
-  - "tests/e2e/listing-registration.spec.ts"
-  - "tests/e2e/photo-uploader-flow.spec.ts"
-  - "tests/contracts/pricing-suggestion-accepted.v1.contract.test.ts"
-  - "src/domain/pricing/pricing-suggestion.test.ts"
+  - "src/domain/pricing/auto-adjust-rule.test.ts"
+  - "src/feature/listing/actions/save-auto-adjust-rule.action.test.ts"
+  - "src/infra/pricing/auto-adjust-rule.repository.test.ts"
+  - "tests/e2e/auto-adjust-rule-flow.spec.ts"
 ---
 
-# Test Review: Story 2.3 PriceSuggestionCard 기반 추천가 수용/수정 확정
+# Test Review: Story 3.1 자동 가격조정 규칙 설정
 
 **Date:** 2026-04-22
-**Scope:** Story 2.3 focused test review
-**Stack:** Next.js App Router, React, Jest unit/contract tests, Playwright E2E
+**Scope:** Story 3.1 focused test review
+**Stack:** Next.js App Router, React, Jest unit/action/repository tests, Playwright E2E
 **Recommendation:** Approve
-**Coverage note:** `test-review`는 coverage를 점수화하지 않는다. 요구사항 추적과 coverage gate는 `trace` 워크플로우에서 다룬다.
+**Coverage note:** `test-review` does not score requirements coverage. Requirements trace and coverage gates belong to the trace workflow.
 
 ## Score Summary
 
 | Dimension | Score | Grade | Notes |
 | --- | ---: | --- | --- |
-| Determinism | 96 | A | No hard waits, no random data, fixed event timestamp in contract test |
-| Isolation | 94 | A | UI tests use per-test page state; auth fixture is localStorage-scoped through `addInitScript` |
-| Maintainability | 93 | A | Shared listing-basis helper now accepts the title used by submit assertions |
-| Performance | 95 | A | Focused Playwright run completed in 12.1s; no serial constraints or expensive repeated setup beyond DB-gated submit test |
-| **Overall** | **95** | **A** | Review finding applied and all focused gates passed |
+| Determinism | 95 | A | No hard waits; E2E uses stable labels/test ids and scoped role locators |
+| Isolation | 93 | A | Unit tests inject action/repository dependencies; DB-backed E2E creates its own listing |
+| Maintainability | 94 | A | Rule flow helpers keep form setup centralized and assertions are acceptance-facing |
+| Performance | 94 | A | Focused unit and E2E checks run quickly; no serial Playwright dependency added |
+| **Overall** | **94** | **A** | Review findings applied and focused gates passed |
 
 ## Findings Applied
 
-### HIGH: Story E2E did not prove accepted suggested price submission
+### MEDIUM: E2E did not assert field-level recovery guidance
 
-- **Evidence:** `tests/e2e/price-suggestion-card-flow.spec.ts` asserted that accepting the suggestion updated the read-only `priceKrw` field, but it did not submit the form and verify the persisted listing detail price. The story testing requirement explicitly calls for final `priceKrw` submission reflection.
-- **Risk:** A regression could keep the UI confirmation state green while breaking the actual `FormData` submit path used by `createListing`.
-- **Fix:** Added a DB-gated focused E2E at `tests/e2e/price-suggestion-card-flow.spec.ts:19` that accepts the suggested price, submits the listing, and verifies the detail page price is `1,240,000원`.
-- **Follow-up found during fix:** The first draft of the new test changed the title after suggestion generation, correctly triggering stale revision protection. The helper now accepts the final title up front so the submission assertion exercises the valid accept path.
+- **Evidence:** `tests/e2e/auto-adjust-rule-flow.spec.ts` asserted the validation alert and preserved values after invalid input, but did not prove field-specific errors or the recovery guide were rendered.
+- **Risk:** The server action could keep rejecting invalid input while the user-facing field guidance regressed.
+- **Fix:** Added E2E assertions for the validation alert recovery guide and the period, discount, and floor helper texts.
+
+### MEDIUM: Repository read path lacked unit coverage for reopen/prefill behavior
+
+- **Evidence:** `src/infra/pricing/auto-adjust-rule.repository.test.ts` covered upsert and write failures, but not `findActiveByListingId`, which is the persistence path used by the rule setup page on revisit.
+- **Risk:** Prefill behavior could break independently of save behavior.
+- **Fix:** Added repository tests for active rule mapping and disabled-rule exclusion.
+
+### LOW: No-active-rule invalid recovery branch was implicit only
+
+- **Evidence:** Action tests covered preserving the last valid rule on invalid input, but not the first-save invalid case where there is no last valid rule to restore.
+- **Risk:** A first-time user could lose attempted values needed to correct the form.
+- **Fix:** Added an action test proving attempted invalid values remain available when no active rule exists yet.
 
 ## Test Inventory Reviewed
 
-| File | Lines | Framework | Tests | Review Notes |
-| --- | ---: | --- | ---: | --- |
-| `tests/e2e/price-suggestion-card-flow.spec.ts` | 150 | Playwright | 6 | Accept, submit/detail persistence, manual edit, validation, auth recovery, stale revision |
-| `tests/contracts/pricing-suggestion-accepted.v1.contract.test.ts` | 45 | Jest | 3 | Canonical fixture, deterministic event id, required revision/idempotency fields |
-| `src/domain/pricing/pricing-suggestion.test.ts` | 46 | Jest | 2 | Deterministic basis revision, suggestion amount, client price policy guard |
-| `tests/e2e/listing-registration.spec.ts` | 123 | Playwright | 2 | Existing DB-backed submit/detail path remains aligned with price card manual confirmation |
-| `tests/e2e/photo-uploader-flow.spec.ts` | 429 | Playwright | 9 | Existing fallback completion tests updated by dev to confirm manual price before submit |
+| File | Framework | Review Notes |
+| --- | --- | --- |
+| `src/domain/pricing/auto-adjust-rule.test.ts` | Jest | Valid normalization, invalid boundaries, unsafe floor/current-price combination, display helpers |
+| `src/feature/listing/actions/save-auto-adjust-rule.action.test.ts` | Jest | Save success, invalid recovery, retryable persistence failure, first-save invalid recovery |
+| `src/infra/pricing/auto-adjust-rule.repository.test.ts` | Jest | One active rule upsert, active read/prefill mapping, disabled rule exclusion, FK and retryable failures |
+| `tests/e2e/auto-adjust-rule-flow.spec.ts` | Playwright | Save, invalid recovery, field guidance, detail summary, revisit prefill, keyboard focus order |
 
 ## Quality Criteria Assessment
 
 | Criterion | Status | Notes |
 | --- | --- | --- |
-| Network-first pattern | PASS | AI route mocks in adjacent regression tests are installed before upload/navigation triggers |
-| Hard waits | PASS | No `waitForTimeout` or fixed sleeps in Story 2.3 active tests |
-| Determinism | PASS | Stable test data; event deterministic checks use fixed inputs |
-| Isolation | PASS | No test order dependency; DB-backed submit test is skipped when `DATABASE_URL` is absent |
-| Fixture/helper use | PASS | Shared `fillConfirmedListingBasis` reduces repeated form setup |
-| Explicit assertions | PASS | Price card tests assert field values, event id absence/presence, stale/auth alerts, and detail price |
-| Performance | PASS | Focused Playwright run is short; no unnecessary serial mode |
-| Priority markers | WARN | Active file names do not encode P0/P1 markers, but the ATDD red-phase artifacts retain priority labels |
-
-## Best Practices Found
-
-- The stale suggestion test mutates core listing fields after suggestion generation and verifies no event id is produced.
-- The auth recovery test uses a typed fixture branch and asserts seller input is retained without creating an event.
-- Contract tests assert both canonical schema acceptance and deterministic producer helper behavior.
-- Client/domain price policy tests compare against the listing creation schema so the UI guard does not drift looser than server validation.
+| Hard waits | PASS | No `waitForTimeout` or fixed sleep usage |
+| Determinism | PASS | Stable listing data, scoped role locators, no randomness |
+| Isolation | PASS | Unit tests inject dependencies; E2E creates a fresh listing |
+| Network-first pattern | N/A | Story 3.1 flow is DB/server-action based and does not mock network routes |
+| Fixture/helper use | PASS | E2E uses local helpers for listing creation and form filling |
+| Explicit assertions | PASS | Tests assert persisted active state, field errors, recovery guide, prefill, and focus order |
+| Performance | PASS | Focused checks are short and parallel-safe |
+| Priority markers | WARN | Active tests do not encode P0/P1 IDs in names; red-phase ATDD artifacts retain priority mapping |
 
 ## Validation
 
-- `pnpm typecheck` passed. Node engine warning remains: current `v22.18.0`, package requires `>=24.14.1 <25`.
-- `pnpm lint` passed with the same Node engine warning.
-- `pnpm unit` passed: 14 suites, 45 tests.
-- `pnpm contract` passed: 4 suites, 15 tests.
-- `pnpm perf-budget` passed, including `next build` and budget probe. Same Node engine warning.
-- Focused Playwright passed: `PLAYWRIGHT_WEB_SERVER_COMMAND="pnpm dev" pnpm exec playwright test tests/e2e/price-suggestion-card-flow.spec.ts --project=chromium` -> 6 passed, 5 ATDD red-phase tests skipped.
+- `pnpm unit --runTestsByPath src/domain/pricing/auto-adjust-rule.test.ts src/feature/listing/actions/save-auto-adjust-rule.action.test.ts src/infra/pricing/auto-adjust-rule.repository.test.ts` passed: 3 suites, 14 tests.
+- `PLAYWRIGHT_WEB_SERVER_COMMAND="pnpm dev" pnpm test:e2e tests/e2e/auto-adjust-rule-flow.spec.ts --project=chromium` passed: 1 active test passed, 3 red-phase tests skipped.
+- `pnpm typecheck` passed.
+- `pnpm lint` passed.
+- Local shell warning remains: package requires Node `>=24.14.1 <25`; local shell used Node `v22.18.0`.
 - Playwright/Next emitted `NO_COLOR` ignored warnings due to `FORCE_COLOR`; not test-failing.
 
 ## Residual Risk
 
-- Full Playwright suite was not rerun in this review; focused Story 2.3 E2E plus related unit/contract/perf gates passed.
-- Local shell Node remains below the package engine range. CI/release should use Node `>=24.14.1 <25`.
-- The DB-backed submit assertion requires a reachable `DATABASE_URL`; without it, the test is intentionally skipped like existing listing registration E2E.
+- Full unit and Playwright suites were not rerun; this review ran focused Story 3.1 checks plus static gates.
+- DB-backed E2E uses the configured/default `DATABASE_URL`; environments without a reachable database must keep the same intentional skip behavior or provide a test database.
+- Scheduler, automatic price mutation, history, and `pricing.auto_adjust.applied.v1` coverage remain out of scope for Story 3.1 and belong to later Epic 3 stories.
 
 ## Decision
 
-**Approve.** The main review gap was a missing persisted submission assertion for accepted suggested price. That test is now present, verified, and scoped to the existing DB-backed E2E pattern. No blocking test quality issues remain.
+**Approve.** The concrete test-review gaps were addressed with focused test additions. No blocking Story 3.1 test quality issue remains.

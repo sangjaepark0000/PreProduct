@@ -92,9 +92,17 @@ test.describe("Auto-adjust rule flow", () => {
     });
     await page.getByRole("button", { name: "규칙 저장" }).click();
 
-    await expect(
-      page.getByRole("alert").filter({ hasText: "유효성 검증" })
-    ).toContainText("유효성 검증");
+    const validationAlert = page
+      .getByRole("alert")
+      .filter({ hasText: "유효성 검증" });
+
+    await expect(validationAlert).toContainText("유효성 검증");
+    await expect(validationAlert).toContainText(
+      "1일 이상 365일 이하의 정수로 다시 입력해 주세요."
+    );
+    await expect(page.getByText("주기는 1일 이상 입력해 주세요.")).toBeVisible();
+    await expect(page.getByText("인하율은 50% 이하로 입력해 주세요.")).toBeVisible();
+    await expect(page.getByText("최저가 하한은 1원 이상 입력해 주세요.")).toBeVisible();
     await expect(page.getByLabel("주기(일)", { exact: true })).toHaveValue("14");
     await expect(page.getByLabel("인하율(%)", { exact: true })).toHaveValue("8");
     await expect(page.getByLabel("최저가 하한 (원)", { exact: true })).toHaveValue(
