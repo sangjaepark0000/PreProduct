@@ -84,6 +84,7 @@ so that 가격 결정을 빠르게 마무리할 수 있다.
 ### Review Findings
 
 - [x] [Review][Patch] 확정 가격이 상품 정보 변경 또는 실패한 수동 가격 확정 후에도 제출값으로 남을 수 있음 [`src/feature/listing/components/price-suggestion-card.client.tsx`] — 현재 basis revision과 일치하지 않는 확정가는 제출 필드에서 제외하고, 수동 가격을 다시 편집하거나 검증 실패가 발생하면 기존 확정값과 이벤트를 초기화하도록 수정했다. `tests/e2e/price-suggestion-card-flow.spec.ts`에 회귀 테스트를 추가했다.
+- [x] [Review][Patch] stale 추천가 상태에서 수동 가격 확정 이벤트가 이전 basis revision으로 생성될 수 있음 [`src/feature/listing/components/price-suggestion-card.client.tsx`] — 수동 수정 확정 이벤트는 현재 상품 정보 기준 추천값과 basis revision을 사용하도록 수정했다. `tests/e2e/price-suggestion-card-flow.spec.ts`에 current-basis deterministic eventId 회귀 테스트를 추가했다.
 
 ## Dev Notes
 

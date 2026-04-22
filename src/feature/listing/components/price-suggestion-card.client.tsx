@@ -158,7 +158,10 @@ export function PriceSuggestionCard({
     confirmedPriceKrw: number;
     mode: PricingConfirmationMode;
   }): PricingSuggestionAcceptedV1 | null {
-    if (!suggestion) {
+    const eventSuggestion =
+      input.mode === "edited" ? nextSuggestion : suggestion;
+
+    if (!eventSuggestion) {
       return null;
     }
 
@@ -171,11 +174,11 @@ export function PriceSuggestionCard({
     }
 
     return buildPricingSuggestionAcceptedV1({
-      clientRequestId: `client-${suggestion.basis.basisRevision}`,
-      idempotencyKey: `pricing-${suggestion.basis.basisRevision}`,
-      traceId: `trace-${suggestion.basis.basisRevision}`,
-      basisRevision: suggestion.basis.basisRevision,
-      suggestedPriceKrw: suggestion.suggestedPriceKrw,
+      clientRequestId: `client-${eventSuggestion.basis.basisRevision}`,
+      idempotencyKey: `pricing-${eventSuggestion.basis.basisRevision}`,
+      traceId: `trace-${eventSuggestion.basis.basisRevision}`,
+      basisRevision: eventSuggestion.basis.basisRevision,
+      suggestedPriceKrw: eventSuggestion.suggestedPriceKrw,
       confirmedPriceKrw: input.confirmedPriceKrw,
       mode: input.mode,
       manualReason: input.mode === "edited" ? manualReason.trim() : undefined

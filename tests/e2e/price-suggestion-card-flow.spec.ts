@@ -1,4 +1,9 @@
 import { expect, test } from "../support/fixtures/index.js";
+import {
+  buildPricingSuggestion,
+  buildPricingSuggestionBasis
+} from "@/domain/pricing/pricing-suggestion";
+import { buildPricingSuggestionAcceptedV1 } from "@/shared/contracts/events/pricing-suggestion-accepted.v1";
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
@@ -179,5 +184,52 @@ test.describe("PriceSuggestionCard flow", () => {
 
     await expect(page).toHaveURL(/\/listings\/new$/u);
     await expect(errorAlert).toContainText("가격");
+  });
+
+  test("uses the current basis revision for manual confirmation after a stale suggestion", async ({
+    page
+  }) => {
+    const changedSpecs = "M3 Pro\n18GB RAM\n외관 흠집 있음";
+    const currentBasis = buildPricingSuggestionBasis({
+      title: "ATDD 맥북 프로 M3",
+      category: "노트북",
+      keySpecificationsText: changedSpecs
+    });
+    const currentSuggestion = buildPricingSuggestion(currentBasis);
+
+    if (!currentSuggestion) {
+      throw new Error("Expected current basis to produce a pricing suggestion.");
+    }
+
+    const expectedEvent = buildPricingSuggestionAcceptedV1({
+      clientRequestId: `client-${currentBasis.basisRevision}`,
+      idempotencyKey: `pricing-${currentBasis.basisRevision}`,
+      traceId: `trace-${currentBasis.basisRevision}`,
+      basisRevision: currentBasis.basisRevision,
+      suggestedPriceKrw: currentSuggestion.suggestedPriceKrw,
+      confirmedPriceKrw: 1_180_000,
+      mode: "edited",
+      manualReason: "상태 하자를 반영한 수동 수정"
+    });
+
+    await page.goto("/listings/new");
+    await fillConfirmedListingBasis(page);
+    await expect(page.getByTestId("price-suggestion-card")).toBeVisible();
+
+    await page
+      .getByTestId("listing-final-fields")
+      .getByLabel("핵심 스펙", { exact: true })
+      .fill(changedSpecs);
+    await page.getByLabel("수동 가격 (원)").fill("1180000");
+    await page.getByLabel("수정 사유").fill("상태 하자를 반영한 수동 수정");
+    await page.getByRole("button", { name: "수동 가격 확정" }).click();
+
+    await expect(page.getByLabel("가격 (원)", { exact: true })).toHaveValue(
+      "1180000"
+    );
+    await expect(page.getByTestId("price-confirmation-mode")).toHaveText("edited");
+    await expect(page.getByTestId("price-confirmed-event-id")).toHaveText(
+      expectedEvent.eventId
+    );
   });
 });
