@@ -237,56 +237,35 @@ test.describe("PhotoUploader flow", () => {
     page
   }) => {
     const lateResponse = createDeferred();
+    const title = "late-success-preserved-manual-title";
 
     await page.route("**/api/ai/extractions", async (route) => {
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
       await lateResponse.promise;
       await route.fulfill({
         status: 202,
         contentType: "application/json",
-        body: JSON.stringify({
-          data: {
-            status: "success",
-            clientRequestId: "stale-client-request",
-            idempotencyKey: "idem-late",
-            requestVersion: 1,
-            draft: {
-              title: "AI가 늦게 만든 제목",
-              category: "노트북",
-              keySpecifications: ["M4", "16GB"],
-              confidence: 0.88,
-              fallbackRecommended: false
-            }
-          },
-          meta: {
-            requestId: "req-late"
-          }
-        })
+        body: buildAiSuccessBody(meta, "req-late")
       });
     });
 
     await page.goto("/listings/new");
-    await page.getByLabel("상품 사진 업로드").setInputFiles({
-      name: "macbook-photo.jpg",
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("fake-jpeg-bytes")
-    });
-
+    await uploadProductPhoto(page);
     await page.getByRole("button", { name: "수동 입력으로 계속" }).click();
     const finalFields = page.getByTestId("listing-final-fields");
 
-    await finalFields.getByLabel("제목").fill("사용자가 직접 입력한 제목");
-    await finalFields.getByLabel("카테고리").fill("카메라");
-    await finalFields.getByLabel("핵심 스펙").fill("사용자 입력 스펙");
+    await fillManualListingFields(page, title);
 
     lateResponse.resolve();
 
-    await expect(finalFields.getByLabel("제목")).toHaveValue(
-      "사용자가 직접 입력한 제목"
-    );
+    await expect(finalFields.getByLabel("제목")).toHaveValue(title);
     await expect(finalFields.getByLabel("카테고리")).toHaveValue("카메라");
     await expect(finalFields.getByLabel("핵심 스펙")).toHaveValue(
-      "사용자 입력 스펙"
+      "바디 단품\n셔터 1200컷"
     );
+    await expect(page.getByLabel("가격 (원)")).toHaveValue("880000");
+    await expect(page.getByLabel("판매중")).toBeChecked();
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
     );
