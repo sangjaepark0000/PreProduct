@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   Alert,
   AlertTitle,
@@ -26,7 +26,12 @@ import {
 import { prelistingStatusValues } from "@/domain/prelisting-status/prelisting-status";
 import { ListingSubmitBar } from "@/feature/listing/components/listing-submit-bar.client";
 import { PhotoUploader } from "@/feature/listing/components/photo-uploader.client";
-import type { AiExtractionDraft } from "@/shared/contracts/ai-extraction";
+import {
+  ExtractionFieldEditor,
+  type ExtractionReviewSession
+} from "@/feature/listing/components/extraction-field-editor.client";
+import type { AiExtractionResult } from "@/shared/contracts/ai-extraction";
+import type { AiExtractionReviewedV1 } from "@/shared/contracts/events/ai-extraction-reviewed.v1";
 
 type ListingFormProps = {
   action: (
@@ -175,59 +180,152 @@ function ListingDraftFields({ values, fieldErrors }: ListingDraftFieldsProps) {
   const [keySpecificationsText, setKeySpecificationsText] = useState(
     values.keySpecificationsText
   );
+  const [reviewSession, setReviewSession] =
+    useState<ExtractionReviewSession | null>(null);
+  const [reviewedEvent, setReviewedEvent] =
+    useState<AiExtractionReviewedV1 | null>(null);
+  const [reviewStatusMessage, setReviewStatusMessage] = useState("");
+  const reviewSessionRef = useRef<ExtractionReviewSession | null>(null);
+  const reviewDirtyRef = useRef(false);
 
-  function applyAiDraft(draft: AiExtractionDraft) {
-    setTitle((current) => (current.trim().length > 0 ? current : draft.title));
-    setCategory((current) =>
-      current.trim().length > 0 ? current : draft.category
-    );
-    setKeySpecificationsText((current) =>
-      current.trim().length > 0 ? current : draft.keySpecifications.join("\n")
-    );
+  function setActiveReviewSession(session: ExtractionReviewSession | null) {
+    reviewSessionRef.current = session;
+    setReviewSession(session);
+  }
+
+  function prepareAiDraftReview(result: AiExtractionResult): boolean {
+    const currentSession = reviewSessionRef.current;
+
+    if (currentSession && reviewDirtyRef.current) {
+      setReviewStatusMessage(
+        "수정 중인 AI 초안을 유지했습니다. 새 초안은 자동 반영되지 않았습니다."
+      );
+      return false;
+    }
+
+    if (currentSession && result.requestVersion < currentSession.requestVersion) {
+      return false;
+    }
+
+    const nextSession = {
+      clientRequestId: result.clientRequestId,
+      idempotencyKey: result.idempotencyKey,
+      requestVersion: result.requestVersion,
+      draft: result.draft
+    };
+
+    reviewDirtyRef.current = false;
+    setActiveReviewSession(nextSession);
+    setReviewStatusMessage("");
+    return true;
+  }
+
+  function clearCleanReviewSession() {
+    if (reviewDirtyRef.current) {
+      return;
+    }
+
+    setActiveReviewSession(null);
+    setReviewStatusMessage("");
   }
 
   return (
     <>
-      <PhotoUploader onDraftReady={applyAiDraft} onFallback={() => undefined} />
-
-      <TextField
-        name="title"
-        label="제목"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        error={Boolean(fieldErrors.title)}
-        helperText={fieldErrors.title ?? "예: 맥북 에어 M3 13인치"}
-        fullWidth
-        autoComplete="off"
-        slotProps={{ htmlInput: { maxLength: 120 } }}
+      <PhotoUploader
+        onDraftReady={prepareAiDraftReview}
+        onDraftInvalidated={clearCleanReviewSession}
+        onFallback={() => {
+          reviewDirtyRef.current = false;
+          setActiveReviewSession(null);
+        }}
       />
 
-      <TextField
-        name="category"
-        label="카테고리"
-        value={category}
-        onChange={(event) => setCategory(event.target.value)}
-        error={Boolean(fieldErrors.category)}
-        helperText={fieldErrors.category ?? "예: 노트북, 카메라, 게임기"}
-        fullWidth
-        autoComplete="off"
-        slotProps={{ htmlInput: { maxLength: 60 } }}
-      />
+      {reviewSession ? (
+        <ExtractionFieldEditor
+          key={`${reviewSession.clientRequestId}:${reviewSession.requestVersion}`}
+          session={reviewSession}
+          onConfirm={({ fields, event }) => {
+            setTitle(fields.title);
+            setCategory(fields.category);
+            setKeySpecificationsText(fields.keySpecifications.join("\n"));
+            setReviewedEvent(event);
+            reviewDirtyRef.current = false;
+            setActiveReviewSession(null);
+            setReviewStatusMessage("AI 초안을 확정했습니다.");
+          }}
+          onDismiss={() => {
+            reviewDirtyRef.current = false;
+            setActiveReviewSession(null);
+            setReviewStatusMessage("AI 초안 검토를 닫았습니다.");
+          }}
+          onDirtyChange={(isDirty) => {
+            reviewDirtyRef.current = isDirty;
+          }}
+        />
+      ) : null}
 
-      <TextField
-        name="keySpecificationsText"
-        label="핵심 스펙"
-        value={keySpecificationsText}
-        onChange={(event) => setKeySpecificationsText(event.target.value)}
-        error={Boolean(fieldErrors.keySpecificationsText)}
-        helperText={
-          fieldErrors.keySpecificationsText ??
-          "한 줄에 한 개씩 입력해 주세요. 예: 16GB RAM"
-        }
-        fullWidth
-        multiline
-        minRows={4}
-      />
+      {reviewStatusMessage ? (
+        <Typography
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="extraction-review-status"
+          variant="body2"
+          color="text.secondary"
+        >
+          {reviewStatusMessage}
+        </Typography>
+      ) : null}
+
+      {reviewedEvent ? (
+        <input
+          type="hidden"
+          name="aiExtractionReviewedEventId"
+          value={reviewedEvent.eventId}
+          data-testid="ai-extraction-reviewed-event-id"
+        />
+      ) : null}
+
+      <Stack data-testid="listing-final-fields" spacing={2.5}>
+        <TextField
+          name="title"
+          label="제목"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          error={Boolean(fieldErrors.title)}
+          helperText={fieldErrors.title ?? "예: 맥북 에어 M3 13인치"}
+          fullWidth
+          autoComplete="off"
+          slotProps={{ htmlInput: { maxLength: 120 } }}
+        />
+
+        <TextField
+          name="category"
+          label="카테고리"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          error={Boolean(fieldErrors.category)}
+          helperText={fieldErrors.category ?? "예: 노트북, 카메라, 게임기"}
+          fullWidth
+          autoComplete="off"
+          slotProps={{ htmlInput: { maxLength: 60 } }}
+        />
+
+        <TextField
+          name="keySpecificationsText"
+          label="핵심 스펙"
+          value={keySpecificationsText}
+          onChange={(event) => setKeySpecificationsText(event.target.value)}
+          error={Boolean(fieldErrors.keySpecificationsText)}
+          helperText={
+            fieldErrors.keySpecificationsText ??
+            "한 줄에 한 개씩 입력해 주세요. 예: 16GB RAM"
+          }
+          fullWidth
+          multiline
+          minRows={4}
+        />
+      </Stack>
     </>
   );
 }

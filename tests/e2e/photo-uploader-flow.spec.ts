@@ -43,9 +43,19 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "success"
     );
-    await expect(page.getByLabel("제목")).toHaveValue("AI가 만든 제목");
-    await expect(page.getByLabel("카테고리")).toHaveValue("노트북");
-    await expect(page.getByLabel("핵심 스펙")).toHaveValue("M3\n16GB RAM");
+    await expect(page.getByTestId("extraction-field-editor")).toBeVisible();
+    await expect(page.getByTestId("extraction-confidence-label")).toContainText(
+      "높음 82%"
+    );
+    await expect(page.getByTestId("listing-final-fields").getByLabel("제목")).toHaveValue(
+      ""
+    );
+    await expect(
+      page.getByTestId("listing-final-fields").getByLabel("카테고리")
+    ).toHaveValue("");
+    await expect(
+      page.getByTestId("listing-final-fields").getByLabel("핵심 스펙")
+    ).toHaveValue("");
   });
 
   test("separates file type, size, and corruption errors with retry CTA", async ({
@@ -126,9 +136,13 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
     );
-    await expect(page.getByLabel("제목")).toBeEditable();
-    await expect(page.getByLabel("카테고리")).toBeEditable();
-    await expect(page.getByLabel("핵심 스펙")).toBeEditable();
+    await expect(page.getByTestId("listing-final-fields").getByLabel("제목")).toBeEditable();
+    await expect(
+      page.getByTestId("listing-final-fields").getByLabel("카테고리")
+    ).toBeEditable();
+    await expect(
+      page.getByTestId("listing-final-fields").getByLabel("핵심 스펙")
+    ).toBeEditable();
   });
 
   test("ignores a late AI response after fallback and preserves manual edits", async ({
@@ -170,15 +184,21 @@ test.describe("PhotoUploader flow", () => {
     });
 
     await page.getByRole("button", { name: "수동 입력으로 계속" }).click();
-    await page.getByLabel("제목").fill("사용자가 직접 입력한 제목");
-    await page.getByLabel("카테고리").fill("카메라");
-    await page.getByLabel("핵심 스펙").fill("사용자 입력 스펙");
+    const finalFields = page.getByTestId("listing-final-fields");
+
+    await finalFields.getByLabel("제목").fill("사용자가 직접 입력한 제목");
+    await finalFields.getByLabel("카테고리").fill("카메라");
+    await finalFields.getByLabel("핵심 스펙").fill("사용자 입력 스펙");
 
     lateResponse.resolve();
 
-    await expect(page.getByLabel("제목")).toHaveValue("사용자가 직접 입력한 제목");
-    await expect(page.getByLabel("카테고리")).toHaveValue("카메라");
-    await expect(page.getByLabel("핵심 스펙")).toHaveValue("사용자 입력 스펙");
+    await expect(finalFields.getByLabel("제목")).toHaveValue(
+      "사용자가 직접 입력한 제목"
+    );
+    await expect(finalFields.getByLabel("카테고리")).toHaveValue("카메라");
+    await expect(finalFields.getByLabel("핵심 스펙")).toHaveValue(
+      "사용자 입력 스펙"
+    );
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
     );
@@ -240,7 +260,13 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "success"
     );
-    await expect(page.getByLabel("제목")).toHaveValue("AI가 만든 제목");
+    await expect(page.getByTestId("extraction-field-editor")).toBeVisible();
+    await expect(
+      page.getByTestId("extraction-field-editor").getByLabel("AI 초안 제목")
+    ).toHaveValue("AI가 만든 제목");
+    await expect(page.getByTestId("listing-final-fields").getByLabel("제목")).toHaveValue(
+      ""
+    );
   });
 
   test("ignores an older AI response after a later invalid file selection", async ({
@@ -283,8 +309,14 @@ test.describe("PhotoUploader flow", () => {
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "error"
     );
-    await expect(page.getByLabel("제목")).toHaveValue("");
-    await expect(page.getByLabel("카테고리")).toHaveValue("");
-    await expect(page.getByLabel("핵심 스펙")).toHaveValue("");
+    await expect(page.getByTestId("listing-final-fields").getByLabel("제목")).toHaveValue(
+      ""
+    );
+    await expect(
+      page.getByTestId("listing-final-fields").getByLabel("카테고리")
+    ).toHaveValue("");
+    await expect(
+      page.getByTestId("listing-final-fields").getByLabel("핵심 스펙")
+    ).toHaveValue("");
   });
 });

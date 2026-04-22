@@ -9,6 +9,14 @@ type AiRequestMeta = {
   requestVersion: number;
 };
 
+type AiSuccessDraft = {
+  title: string;
+  category: string;
+  keySpecifications: string[];
+  confidence: number;
+  fallbackRecommended: boolean;
+};
+
 export function createDeferred<T = void>(): Deferred<T> {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((promiseResolve) => {
@@ -38,7 +46,11 @@ export function readAiRequestMeta(body: string): AiRequestMeta {
   };
 }
 
-export function buildAiSuccessBody(meta: AiRequestMeta, requestId: string) {
+export function buildAiSuccessBody(
+  meta: AiRequestMeta,
+  requestId: string,
+  draftOverrides: Partial<AiSuccessDraft> = {}
+) {
   return JSON.stringify({
     data: {
       status: "requesting",
@@ -50,7 +62,8 @@ export function buildAiSuccessBody(meta: AiRequestMeta, requestId: string) {
         category: "노트북",
         keySpecifications: ["M3", "16GB RAM"],
         confidence: 0.82,
-        fallbackRecommended: false
+        fallbackRecommended: false,
+        ...draftOverrides
       }
     },
     meta: {

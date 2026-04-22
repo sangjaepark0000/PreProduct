@@ -1,0 +1,15 @@
+{
+  "eventId": "4b777a9d-30e8-5700-8905-868509c98d4f",
+  "occurredAt": "2026-04-22T09:00:00.000Z",
+  "traceId": "trace-story-2-2-reviewed",
+  "schemaVersion": "1.0.0",
+  "payload": {
+    "clientRequestId": "client-req-story-2-2",
+    "idempotencyKey": "idem-story-2-2-draft-001",
+    "requestVersion": 2,
+    "acceptedFields": ["confidence", "fallbackRecommended"],
+    "editedFields": ["title", "category", "keySpecifications"],
+    "confidence": 0.82,
+    "fallbackRecommended": false
+  }
+}
