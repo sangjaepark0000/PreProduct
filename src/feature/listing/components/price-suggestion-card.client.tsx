@@ -77,12 +77,23 @@ export function PriceSuggestionCard({
   initialPriceKrw,
   fieldError
 }: PriceSuggestionCardProps) {
+  const currentBasis = useMemo(
+    () =>
+      buildPricingSuggestionBasis({
+        title,
+        category,
+        keySpecificationsText
+      }),
+    [category, keySpecificationsText, title]
+  );
+  const initialConfirmedPrice = normalizePriceInput(initialPriceKrw);
   const [suggestion, setSuggestion] = useState<PricingSuggestion | null>(null);
   const [manualPrice, setManualPrice] = useState(initialPriceKrw);
   const [manualReason, setManualReason] = useState("");
-  const [confirmedPrice, setConfirmedPrice] = useState(
-    normalizePriceInput(initialPriceKrw)
-  );
+  const [confirmedPrice, setConfirmedPrice] = useState(initialConfirmedPrice);
+  const [confirmedBasisRevision, setConfirmedBasisRevision] = useState<
+    string | null
+  >(initialConfirmedPrice ? currentBasis.basisRevision : null);
   const [confirmationMode, setConfirmationMode] =
     useState<PricingConfirmationMode | null>(null);
   const [confirmedEvent, setConfirmedEvent] =
@@ -93,15 +104,6 @@ export function PriceSuggestionCard({
   const [statusMessage, setStatusMessage] = useState(
     "추천가를 확인하거나 수동 가격을 확정해 주세요."
   );
-  const currentBasis = useMemo(
-    () =>
-      buildPricingSuggestionBasis({
-        title,
-        category,
-        keySpecificationsText
-      }),
-    [category, keySpecificationsText, title]
-  );
   const nextSuggestion = useMemo(
     () => buildPricingSuggestion(currentBasis),
     [currentBasis]
@@ -109,6 +111,15 @@ export function PriceSuggestionCard({
   const isStale =
     Boolean(suggestion) &&
     suggestion?.basis.basisRevision !== currentBasis.basisRevision;
+  const isConfirmedBasisStale = Boolean(
+    confirmedBasisRevision &&
+      confirmedBasisRevision !== currentBasis.basisRevision
+  );
+  const effectiveConfirmedPrice = isConfirmedBasisStale ? "" : confirmedPrice;
+  const effectiveConfirmedEvent = isConfirmedBasisStale ? null : confirmedEvent;
+  const effectiveStatusMessage = isConfirmedBasisStale
+    ? "상품 정보가 수정되어 가격을 다시 확정해 주세요."
+    : statusMessage;
   const visibleError = validationError ?? fieldError ?? null;
 
   useEffect(() => {
@@ -128,6 +139,14 @@ export function PriceSuggestionCard({
       cancelled = true;
     };
   }, [nextSuggestion, suggestion]);
+
+  function resetConfirmation(status: string) {
+    setConfirmedPrice("");
+    setConfirmationMode(null);
+    setConfirmedEvent(null);
+    setConfirmedBasisRevision(null);
+    setStatusMessage(status);
+  }
 
   function clearErrors() {
     setValidationError(null);
@@ -175,6 +194,7 @@ export function PriceSuggestionCard({
     if (!event) {
       if (!suggestion && input.mode === "edited") {
         setConfirmedPrice(String(input.priceKrw));
+        setConfirmedBasisRevision(currentBasis.basisRevision);
         setConfirmationMode(input.mode);
         setConfirmedEvent(null);
         setStatusMessage("수동 가격을 최종 가격으로 확정했습니다.");
@@ -184,6 +204,7 @@ export function PriceSuggestionCard({
     }
 
     setConfirmedPrice(String(input.priceKrw));
+    setConfirmedBasisRevision(currentBasis.basisRevision);
     setConfirmationMode(input.mode);
     setConfirmedEvent(event);
     setStatusMessage(
@@ -223,7 +244,7 @@ export function PriceSuggestionCard({
     if (!validation.ok) {
       setValidationError(validation.message);
       setRecoveryGuide(validation.recoveryGuide);
-      setStatusMessage("가격을 확정하려면 표시된 오류를 수정해 주세요.");
+      resetConfirmation("가격을 확정하려면 표시된 오류를 수정해 주세요.");
       return;
     }
 
@@ -383,8 +404,9 @@ export function PriceSuggestionCard({
             value={manualPrice}
             onChange={(event) => {
               setManualPrice(event.target.value);
-              setConfirmedEvent(null);
-              setConfirmationMode(null);
+              resetConfirmation(
+                "수동 가격을 수정했습니다. 최종 가격으로 쓰려면 다시 확정해 주세요."
+              );
             }}
             error={Boolean(validationError)}
             helperText={
@@ -430,7 +452,7 @@ export function PriceSuggestionCard({
           <TextField
             name="priceKrw"
             label="가격 (원)"
-            value={confirmedPrice}
+            value={effectiveConfirmedPrice}
             error={Boolean(fieldError)}
             helperText={
               fieldError ??
@@ -445,7 +467,7 @@ export function PriceSuggestionCard({
             }}
           />
 
-          {confirmedEvent ? (
+          {effectiveConfirmedEvent ? (
             <>
               <Typography
                 data-testid="price-confirmation-mode"
@@ -459,7 +481,7 @@ export function PriceSuggestionCard({
                 variant="body2"
                 color="text.secondary"
               >
-                {confirmedEvent.eventId}
+                {effectiveConfirmedEvent.eventId}
               </Typography>
             </>
           ) : null}
@@ -471,7 +493,7 @@ export function PriceSuggestionCard({
             variant="body2"
             color={visibleError ? "error.main" : "text.secondary"}
           >
-            {statusMessage}
+            {effectiveStatusMessage}
           </Typography>
         </Stack>
       </CardContent>

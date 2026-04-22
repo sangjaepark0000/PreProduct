@@ -1,6 +1,6 @@
 # Story 2.3: PriceSuggestionCard 기반 추천가 수용/수정 확정
 
-Status: review
+Status: done
 
 ## Story
 
@@ -80,6 +80,10 @@ so that 가격 결정을 빠르게 마무리할 수 있다.
   - [x] `tests/contracts/pricing-suggestion-accepted.v1.contract.test.ts`와 fixture를 추가해 event schema와 deterministic `eventId`를 고정한다.
   - [x] `src/domain/pricing/pricing-suggestion.test.ts` 또는 contract unit test로 price policy, basisRevision, accepted/edited mode 계산을 검증한다.
   - [x] 회귀 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, 관련 Playwright E2E, `pnpm perf-budget`.
+
+### Review Findings
+
+- [x] [Review][Patch] 확정 가격이 상품 정보 변경 또는 실패한 수동 가격 확정 후에도 제출값으로 남을 수 있음 [`src/feature/listing/components/price-suggestion-card.client.tsx`] — 현재 basis revision과 일치하지 않는 확정가는 제출 필드에서 제외하고, 수동 가격을 다시 편집하거나 검증 실패가 발생하면 기존 확정값과 이벤트를 초기화하도록 수정했다. `tests/e2e/price-suggestion-card-flow.spec.ts`에 회귀 테스트를 추가했다.
 
 ## Dev Notes
 
@@ -278,3 +282,4 @@ GPT-5 Codex
 - 2026-04-22: Story 2.3 developer-ready context file created.
 - 2026-04-22: ATDD red-phase tests and checklist generated; story status set to `atdd-done`.
 - 2026-04-22: Implemented PriceSuggestionCard recommendation accept/edit confirmation flow; story status set to `review`.
+- 2026-04-22: Code review fixed stale confirmed price submission after basis changes or failed manual confirmation; story status set to `done`.

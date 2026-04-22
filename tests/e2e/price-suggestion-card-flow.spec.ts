@@ -86,6 +86,7 @@ test.describe("PriceSuggestionCard flow", () => {
   }) => {
     await page.goto("/listings/new");
     await fillConfirmedListingBasis(page);
+    await page.getByTestId("price-suggestion-accept-button").click();
 
     await page.getByLabel("수동 가격 (원)").fill("100000000");
     await page.getByRole("button", { name: "수동 가격 확정" }).click();
@@ -103,6 +104,7 @@ test.describe("PriceSuggestionCard flow", () => {
       "aria-invalid",
       "true"
     );
+    await expect(page.getByLabel("가격 (원)", { exact: true })).toHaveValue("");
     await expect(page.getByTestId("price-confirmed-event-id")).toHaveCount(0);
   });
 
@@ -146,5 +148,36 @@ test.describe("PriceSuggestionCard flow", () => {
       page.getByRole("button", { name: "현재 정보 기준으로 다시 확인" })
     ).toBeVisible();
     await expect(page.getByTestId("price-confirmed-event-id")).toHaveCount(0);
+  });
+
+  test("invalidates a confirmed price when the listing basis changes", async ({
+    page
+  }) => {
+    await page.goto("/listings/new");
+    await fillConfirmedListingBasis(page);
+    await page.getByTestId("price-suggestion-accept-button").click();
+
+    await expect(page.getByLabel("가격 (원)", { exact: true })).toHaveValue(
+      "1240000"
+    );
+
+    await page
+      .getByTestId("listing-final-fields")
+      .getByLabel("핵심 스펙", { exact: true })
+      .fill("M3 Pro\n18GB RAM\n외관 흠집 있음");
+
+    await expect(page.getByLabel("가격 (원)", { exact: true })).toHaveValue("");
+    await expect(
+      page.getByTestId("price-suggestion-card").getByRole("status")
+    ).toContainText("상품 정보가 수정되어 가격을 다시 확정해 주세요.");
+
+    await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
+
+    const errorAlert = page
+      .getByRole("alert")
+      .filter({ hasText: "입력 내용을 먼저 확인해 주세요." });
+
+    await expect(page).toHaveURL(/\/listings\/new$/u);
+    await expect(errorAlert).toContainText("가격");
   });
 });
