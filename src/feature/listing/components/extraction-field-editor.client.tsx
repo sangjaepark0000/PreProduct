@@ -37,6 +37,7 @@ type ExtractionFieldEditorProps = {
     event: AiExtractionReviewedV1;
   }) => void;
   onDismiss: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type ValidationErrors = Partial<Record<keyof AiExtractionConfirmedFields, string>>;
@@ -90,7 +91,8 @@ function validateFields(input: {
 export function ExtractionFieldEditor({
   session,
   onConfirm,
-  onDismiss
+  onDismiss,
+  onDirtyChange
 }: ExtractionFieldEditorProps) {
   const [title, setTitle] = useState(session.draft.title);
   const [category, setCategory] = useState(session.draft.category);
@@ -134,6 +136,10 @@ export function ExtractionFieldEditor({
       event
     });
     setStatusMessage("AI 초안을 확정했습니다.");
+  }
+
+  function markDirty() {
+    onDirtyChange?.(true);
   }
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -181,7 +187,10 @@ export function ExtractionFieldEditor({
         <TextField
           label="AI 초안 제목"
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={(event) => {
+            markDirty();
+            setTitle(event.target.value);
+          }}
           error={Boolean(errors.title)}
           helperText={errors.title ?? "제목 초안을 수정할 수 있습니다."}
           fullWidth
@@ -192,7 +201,10 @@ export function ExtractionFieldEditor({
         <TextField
           label="AI 초안 카테고리"
           value={category}
-          onChange={(event) => setCategory(event.target.value)}
+          onChange={(event) => {
+            markDirty();
+            setCategory(event.target.value);
+          }}
           error={Boolean(errors.category)}
           helperText={errors.category ?? "카테고리 초안을 수정할 수 있습니다."}
           fullWidth
@@ -203,7 +215,10 @@ export function ExtractionFieldEditor({
         <TextField
           label="AI 초안 핵심 스펙"
           value={keySpecificationsText}
-          onChange={(event) => setKeySpecificationsText(event.target.value)}
+          onChange={(event) => {
+            markDirty();
+            setKeySpecificationsText(event.target.value);
+          }}
           error={Boolean(errors.keySpecifications)}
           helperText={
             errors.keySpecifications ?? "한 줄에 한 개씩 검토해 주세요."

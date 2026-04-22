@@ -155,4 +155,58 @@ test.describe("ExtractionFieldEditor flow", () => {
     );
     await expect(page.getByTestId("extraction-field-editor")).toBeVisible();
   });
+
+  test("does not replace in-progress review edits when another AI draft arrives", async ({
+    page
+  }) => {
+    let requestCount = 0;
+
+    await page.route("**/api/ai/extractions", async (route) => {
+      requestCount += 1;
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: buildAiSuccessBody(
+          meta,
+          `req-story-2-2-dirty-review-${requestCount}`,
+          requestCount === 1
+            ? {}
+            : {
+                title: "두 번째 AI 제목",
+                category: "카메라",
+                keySpecifications: ["두 번째 초안 스펙"]
+              }
+        )
+      });
+    });
+
+    await page.goto("/listings/new");
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "first-photo.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("first-fake-jpeg-bytes")
+    });
+
+    const editor = page.getByTestId("extraction-field-editor");
+
+    await expect(editor).toBeVisible();
+    await editor.getByLabel("AI 초안 제목").fill("수정 중인 제목");
+
+    await page.getByLabel("상품 사진 업로드").setInputFiles({
+      name: "second-photo.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("second-fake-jpeg-bytes")
+    });
+
+    await expect(editor.getByLabel("AI 초안 제목")).toHaveValue("수정 중인 제목");
+    await expect(editor.getByLabel("AI 초안 카테고리")).toHaveValue("노트북");
+    await expect(page.getByTestId("photo-uploader-status")).toContainText(
+      "수정 중인 AI 초안을 유지했습니다"
+    );
+    await expect(page.getByTestId("extraction-review-status")).toContainText(
+      "새 초안은 자동 반영되지 않았습니다"
+    );
+  });
 });

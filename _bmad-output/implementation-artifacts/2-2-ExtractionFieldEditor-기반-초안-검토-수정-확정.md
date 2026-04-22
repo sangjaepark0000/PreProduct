@@ -1,6 +1,6 @@
 # Story 2.2: ExtractionFieldEditor 기반 초안 검토/수정/확정
 
-Status: review
+Status: done
 
 ## Story
 
@@ -72,6 +72,10 @@ Coverage: FR9, FR10, FR13, FR16, FR23, NFR9, NFR10, NFR11
   - [x] `tests/contracts/ai-extraction-reviewed.v1.contract.test.ts`와 fixture를 추가해 event schema와 deterministic `eventId`를 고정한다.
   - [x] `src/shared/contracts/events/ai-extraction-reviewed.v1.test.ts` 또는 domain/helper unit test로 edited/accepted field 계산을 검증한다.
   - [x] 회귀 게이트를 통과해야 한다: `pnpm lint`, `pnpm typecheck`, `pnpm unit`, `pnpm contract`, `pnpm test:ci`, `pnpm perf-budget`.
+
+### Review Findings
+
+- [x] [Review][Patch] 수정 중인 ExtractionFieldEditor 값이 새 AI draft로 교체될 수 있음 [src/feature/listing/components/listing-form.client.tsx:196] — editor dirty 상태를 ref로 추적하고, dirty editor가 열려 있으면 새 draft를 자동 반영하지 않도록 수정했다. `tests/e2e/extraction-field-editor-flow.spec.ts:159`에 회귀 테스트를 추가했다.
 
 ## Dev Notes
 

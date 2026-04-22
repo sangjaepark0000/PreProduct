@@ -25,7 +25,7 @@ import {
 } from "@/shared/contracts/ai-extraction";
 
 type PhotoUploaderProps = {
-  onDraftReady: (result: AiExtractionResult) => void;
+  onDraftReady: (result: AiExtractionResult) => boolean;
   onFallback: () => void;
 };
 
@@ -99,7 +99,7 @@ function mapClientValidationError(file: File): UploadError | null {
   return null;
 }
 
-function getStatusText(status: AiExtractionStatus): string {
+function getStatusText(status: AiExtractionStatus, successMessage: string): string {
   if (status === "validating") {
     return "사진을 확인하고 있습니다.";
   }
@@ -109,7 +109,7 @@ function getStatusText(status: AiExtractionStatus): string {
   }
 
   if (status === "success") {
-    return "AI 초안이 검토 화면에 표시되었습니다.";
+    return successMessage;
   }
 
   if (status === "error") {
@@ -126,6 +126,9 @@ function getStatusText(status: AiExtractionStatus): string {
 export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) {
   const [status, setStatus] = useState<AiExtractionStatus>("idle");
   const [uploadError, setUploadError] = useState<UploadError | null>(null);
+  const [successMessage, setSuccessMessage] = useState(
+    "AI 초안이 검토 화면에 표시되었습니다."
+  );
   const [inputKey, setInputKey] = useState(0);
   const requestVersionRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -142,6 +145,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     fallbackActiveRef.current = false;
     setStatus("idle");
     setUploadError(null);
+    setSuccessMessage("AI 초안이 검토 화면에 표시되었습니다.");
     setInputKey((current) => current + 1);
   }
 
@@ -149,6 +153,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
     invalidateCurrentRequest();
     fallbackActiveRef.current = true;
     setUploadError(null);
+    setSuccessMessage("AI 초안이 검토 화면에 표시되었습니다.");
     setStatus("fallback");
     onFallback();
   }
@@ -224,7 +229,12 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
         return;
       }
 
-      onDraftReady(body.data);
+      const draftAccepted = onDraftReady(body.data);
+      setSuccessMessage(
+        draftAccepted
+          ? "AI 초안이 검토 화면에 표시되었습니다."
+          : "수정 중인 AI 초안을 유지했습니다."
+      );
       setStatus("success");
     } catch (error) {
       window.clearTimeout(timeoutId);
@@ -333,7 +343,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
           variant="body2"
           color={status === "error" ? "error.main" : "text.secondary"}
         >
-          {getStatusText(status)}
+          {getStatusText(status, successMessage)}
         </Typography>
         <Box data-testid="photo-uploader-request-state" sx={visuallyHiddenSx}>
           {status}

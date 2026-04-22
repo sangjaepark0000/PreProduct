@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   Alert,
   AlertTitle,
@@ -185,27 +185,49 @@ function ListingDraftFields({ values, fieldErrors }: ListingDraftFieldsProps) {
   const [reviewedEvent, setReviewedEvent] =
     useState<AiExtractionReviewedV1 | null>(null);
   const [reviewStatusMessage, setReviewStatusMessage] = useState("");
+  const reviewSessionRef = useRef<ExtractionReviewSession | null>(null);
+  const reviewDirtyRef = useRef(false);
 
-  function prepareAiDraftReview(result: AiExtractionResult) {
-    setReviewSession((current) => {
-      if (current && result.requestVersion < current.requestVersion) {
-        return current;
-      }
+  function setActiveReviewSession(session: ExtractionReviewSession | null) {
+    reviewSessionRef.current = session;
+    setReviewSession(session);
+  }
 
-      return {
-        clientRequestId: result.clientRequestId,
-        idempotencyKey: result.idempotencyKey,
-        requestVersion: result.requestVersion,
-        draft: result.draft
-      };
-    });
+  function prepareAiDraftReview(result: AiExtractionResult): boolean {
+    const currentSession = reviewSessionRef.current;
+
+    if (currentSession && reviewDirtyRef.current) {
+      setReviewStatusMessage(
+        "수정 중인 AI 초안을 유지했습니다. 새 초안은 자동 반영되지 않았습니다."
+      );
+      return false;
+    }
+
+    if (currentSession && result.requestVersion < currentSession.requestVersion) {
+      return false;
+    }
+
+    const nextSession = {
+      clientRequestId: result.clientRequestId,
+      idempotencyKey: result.idempotencyKey,
+      requestVersion: result.requestVersion,
+      draft: result.draft
+    };
+
+    reviewDirtyRef.current = false;
+    setActiveReviewSession(nextSession);
+    setReviewStatusMessage("");
+    return true;
   }
 
   return (
     <>
       <PhotoUploader
         onDraftReady={prepareAiDraftReview}
-        onFallback={() => setReviewSession(null)}
+        onFallback={() => {
+          reviewDirtyRef.current = false;
+          setActiveReviewSession(null);
+        }}
       />
 
       {reviewSession ? (
@@ -217,12 +239,17 @@ function ListingDraftFields({ values, fieldErrors }: ListingDraftFieldsProps) {
             setCategory(fields.category);
             setKeySpecificationsText(fields.keySpecifications.join("\n"));
             setReviewedEvent(event);
-            setReviewSession(null);
+            reviewDirtyRef.current = false;
+            setActiveReviewSession(null);
             setReviewStatusMessage("AI 초안을 확정했습니다.");
           }}
           onDismiss={() => {
-            setReviewSession(null);
+            reviewDirtyRef.current = false;
+            setActiveReviewSession(null);
             setReviewStatusMessage("AI 초안 검토를 닫았습니다.");
+          }}
+          onDirtyChange={(isDirty) => {
+            reviewDirtyRef.current = isDirty;
           }}
         />
       ) : null}
