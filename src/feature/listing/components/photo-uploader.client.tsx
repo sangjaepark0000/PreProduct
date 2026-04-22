@@ -17,15 +17,15 @@ import {
 import {
   aiExtractionAllowedMimeTypes,
   aiExtractionMaxFileBytes,
-  type AiExtractionDraft,
   type AiExtractionErrorCode,
   type AiExtractionErrorEnvelope,
+  type AiExtractionResult,
   type AiExtractionStatus,
   type AiExtractionSuccessEnvelope
 } from "@/shared/contracts/ai-extraction";
 
 type PhotoUploaderProps = {
-  onDraftReady: (draft: AiExtractionDraft) => void;
+  onDraftReady: (result: AiExtractionResult) => void;
   onFallback: () => void;
 };
 
@@ -109,7 +109,7 @@ function getStatusText(status: AiExtractionStatus): string {
   }
 
   if (status === "success") {
-    return "AI 초안이 등록 폼에 반영되었습니다.";
+    return "AI 초안이 검토 화면에 표시되었습니다.";
   }
 
   if (status === "error") {
@@ -224,7 +224,7 @@ export function PhotoUploader({ onDraftReady, onFallback }: PhotoUploaderProps) 
         return;
       }
 
-      onDraftReady(body.data.draft);
+      onDraftReady(body.data);
       setStatus("success");
     } catch (error) {
       window.clearTimeout(timeoutId);

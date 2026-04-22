@@ -41,6 +41,20 @@ export const aiExtractionDraftSchema = z.object({
   fallbackRecommended: z.boolean()
 });
 
+export const aiExtractionConfirmedFieldsSchema = z.object({
+  title: z.string().min(1),
+  category: z.string().min(1),
+  keySpecifications: z.array(z.string().min(1)).min(1)
+});
+
+export const aiExtractionReviewInputSchema = z.object({
+  clientRequestId: z.string().min(1),
+  idempotencyKey: z.string().min(1),
+  requestVersion: z.number().int().positive(),
+  draft: aiExtractionDraftSchema,
+  confirmedFields: aiExtractionConfirmedFieldsSchema
+});
+
 export const aiExtractionResultSchema = z.object({
   status: z.enum(aiExtractionStatusValues),
   clientRequestId: z.string().min(1),
@@ -76,8 +90,52 @@ export type AiExtractionRequest = z.infer<typeof aiExtractionRequestSchema>;
 export type AiExtractionStatus = (typeof aiExtractionStatusValues)[number];
 export type AiExtractionErrorCode = (typeof aiExtractionErrorCodeValues)[number];
 export type AiExtractionDraft = z.infer<typeof aiExtractionDraftSchema>;
+export type AiExtractionConfirmedFields = z.infer<
+  typeof aiExtractionConfirmedFieldsSchema
+>;
+export type AiExtractionReviewInput = z.infer<
+  typeof aiExtractionReviewInputSchema
+>;
 export type AiExtractionResult = z.infer<typeof aiExtractionResultSchema>;
 export type AiExtractionSuccessEnvelope = z.infer<
   typeof aiExtractionSuccessEnvelopeSchema
 >;
 export type AiExtractionErrorEnvelope = z.infer<typeof aiExtractionErrorEnvelopeSchema>;
+
+export type AiExtractionConfidenceLabel = {
+  tone: "high" | "medium" | "low";
+  text: "높음" | "보통" | "낮음";
+  percentage: number;
+  displayText: string;
+};
+
+export function getAiExtractionConfidenceLabel(
+  confidence: number
+): AiExtractionConfidenceLabel {
+  const percentage = Math.round(confidence * 100);
+
+  if (confidence >= 0.75) {
+    return {
+      tone: "high",
+      text: "높음",
+      percentage,
+      displayText: `높음 ${percentage}%`
+    };
+  }
+
+  if (confidence >= 0.5) {
+    return {
+      tone: "medium",
+      text: "보통",
+      percentage,
+      displayText: `보통 ${percentage}%`
+    };
+  }
+
+  return {
+    tone: "low",
+    text: "낮음",
+    percentage,
+    displayText: `낮음 ${percentage}%`
+  };
+}

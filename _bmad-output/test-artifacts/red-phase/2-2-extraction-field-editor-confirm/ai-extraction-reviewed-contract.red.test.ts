@@ -7,7 +7,6 @@ import {
 
 describe("Story 2.2 red-phase AI extraction reviewed contract", () => {
   test.skip("[P0] accepts the canonical ai.extraction.reviewed.v1 event fixture", async () => {
-    // @ts-expect-error RED phase: Story 2.2 must add this event contract module.
     const { aiExtractionReviewedV1Schema } = await import(
       "@/shared/contracts/events/ai-extraction-reviewed.v1"
     );
@@ -18,7 +17,6 @@ describe("Story 2.2 red-phase AI extraction reviewed contract", () => {
   });
 
   test.skip("[P0] derives accepted and edited fields from draft versus confirmed values", async () => {
-    // @ts-expect-error RED phase: Story 2.2 must add this producer-ready helper.
     const { buildAiExtractionReviewedV1 } = await import(
       "@/shared/contracts/events/ai-extraction-reviewed.v1"
     );
@@ -45,7 +43,6 @@ describe("Story 2.2 red-phase AI extraction reviewed contract", () => {
   });
 
   test.skip("[P0] keeps one deterministic eventId for the same draft confirmation", async () => {
-    // @ts-expect-error RED phase: Story 2.2 must add deterministic event id generation.
     const { buildAiExtractionReviewedV1 } = await import(
       "@/shared/contracts/events/ai-extraction-reviewed.v1"
     );

@@ -13,7 +13,7 @@
     "lint": "eslint src tests/contracts next.config.ts jest.setup.ts playwright.config.ts eslint.config.mjs scripts/check-perf-budget.mjs --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "unit": "jest --config jest.config.mjs --coverage --testPathIgnorePatterns tests/contracts tests/e2e _bmad-output/test-artifacts/red-phase",
-    "contract": "jest --config jest.config.mjs --runTestsByPath tests/contracts/listing-created.v1.contract.test.ts tests/contracts/ai-extraction-api.contract.test.ts",
+    "contract": "jest --config jest.config.mjs --runTestsByPath tests/contracts/listing-created.v1.contract.test.ts tests/contracts/ai-extraction-api.contract.test.ts tests/contracts/ai-extraction-reviewed.v1.contract.test.ts",
     "perf-budget": "node scripts/check-perf-budget.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
