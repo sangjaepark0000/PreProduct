@@ -16,7 +16,9 @@ import {
 
 import {
   aiExtractionAllowedMimeTypes,
+  aiExtractionFallbackConfidenceThreshold,
   aiExtractionMaxFileBytes,
+  type AiExtractionDraft,
   type AiExtractionErrorCode,
   type AiExtractionErrorEnvelope,
   type AiExtractionResult,
@@ -28,6 +30,7 @@ type PhotoUploaderProps = {
   onDraftReady: (result: AiExtractionResult) => boolean;
   onDraftInvalidated?: () => void;
   onFallback: () => void;
+  onManualModeReset?: () => void;
 };
 
 type UploadError = {
@@ -124,16 +127,25 @@ function getStatusText(status: AiExtractionStatus, successMessage: string): stri
   return "상품 사진을 업로드하면 AI 초안 요청을 시작합니다.";
 }
 
+function shouldRecommendFallback(draft: AiExtractionDraft): boolean {
+  return (
+    draft.fallbackRecommended ||
+    draft.confidence < aiExtractionFallbackConfidenceThreshold
+  );
+}
+
 export function PhotoUploader({
   onDraftReady,
   onDraftInvalidated,
-  onFallback
+  onFallback,
+  onManualModeReset
 }: PhotoUploaderProps) {
   const [status, setStatus] = useState<AiExtractionStatus>("idle");
   const [uploadError, setUploadError] = useState<UploadError | null>(null);
   const [successMessage, setSuccessMessage] = useState(
     "AI 초안이 검토 화면에 표시되었습니다."
   );
+  const [lowConfidenceDraftPending, setLowConfidenceDraftPending] = useState(false);
   const [inputKey, setInputKey] = useState(0);
   const requestVersionRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -148,15 +160,18 @@ export function PhotoUploader({
   function resetForRetry() {
     invalidateCurrentRequest();
     fallbackActiveRef.current = false;
+    setLowConfidenceDraftPending(false);
     setStatus("idle");
     setUploadError(null);
     setSuccessMessage("AI 초안이 검토 화면에 표시되었습니다.");
     setInputKey((current) => current + 1);
+    onManualModeReset?.();
   }
 
   function switchToFallback() {
     invalidateCurrentRequest();
     fallbackActiveRef.current = true;
+    setLowConfidenceDraftPending(false);
     setUploadError(null);
     setSuccessMessage("AI 초안이 검토 화면에 표시되었습니다.");
     setStatus("fallback");
@@ -178,8 +193,10 @@ export function PhotoUploader({
     abortControllerRef.current = abortController;
     fallbackActiveRef.current = false;
     onDraftInvalidated?.();
+    setLowConfidenceDraftPending(false);
     setUploadError(null);
     setStatus("validating");
+    onManualModeReset?.();
     await Promise.resolve();
 
     if (!isCurrentRequest()) {
@@ -235,6 +252,12 @@ export function PhotoUploader({
         return;
       }
 
+      if (shouldRecommendFallback(body.data.draft)) {
+        setLowConfidenceDraftPending(true);
+        setStatus("success");
+        return;
+      }
+
       const draftAccepted = onDraftReady(body.data);
       setSuccessMessage(
         draftAccepted
@@ -275,8 +298,10 @@ export function PhotoUploader({
       invalidateCurrentRequest();
       fallbackActiveRef.current = false;
       onDraftInvalidated?.();
+      setLowConfidenceDraftPending(false);
       setUploadError(validationError);
       setStatus("error");
+      onManualModeReset?.();
       return;
     }
 
@@ -284,7 +309,11 @@ export function PhotoUploader({
   }
 
   const showProgress = status === "validating" || status === "requesting";
-  const canFallback = status === "requesting" || status === "error";
+  const canFallback =
+    status === "requesting" || status === "error" || lowConfidenceDraftPending;
+  const statusText = lowConfidenceDraftPending
+    ? "AI 초안 신뢰도가 낮습니다. 자동 확정하지 않고 수동 입력으로 계속할 수 있습니다."
+    : getStatusText(status, successMessage);
 
   return (
     <Box
@@ -350,7 +379,7 @@ export function PhotoUploader({
           variant="body2"
           color={status === "error" ? "error.main" : "text.secondary"}
         >
-          {getStatusText(status, successMessage)}
+          {statusText}
         </Typography>
         <Box data-testid="photo-uploader-request-state" sx={visuallyHiddenSx}>
           {status}

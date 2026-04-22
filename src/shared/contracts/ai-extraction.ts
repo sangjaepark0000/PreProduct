@@ -8,6 +8,8 @@ export const aiExtractionAllowedMimeTypes = [
 
 export const aiExtractionMaxFileBytes = 10 * 1024 * 1024;
 
+export const aiExtractionFallbackConfidenceThreshold = 0.5;
+
 export const aiExtractionStatusValues = [
   "idle",
   "validating",

@@ -1,10 +1,31 @@
 import { expect, test } from "../support/fixtures/index.js";
+import type { Page } from "@playwright/test";
 import {
   buildAiSuccessBody,
+  buildLowConfidenceAiSuccessBody,
   buildAiTimeoutErrorBody,
   createDeferred,
   readAiRequestMeta
 } from "../support/helpers/ai-extraction.js";
+
+async function uploadProductPhoto(page: Page) {
+  await page.getByLabel("상품 사진 업로드").setInputFiles({
+    name: "macbook-photo.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes")
+  });
+}
+
+async function fillManualListingFields(
+  page: Page,
+  title: string
+) {
+  await page.getByLabel("제목").fill(title);
+  await page.getByLabel("카테고리").fill("카메라");
+  await page.getByLabel("핵심 스펙").fill("바디 단품\n셔터 1200컷");
+  await page.getByLabel("가격 (원)").fill("880000");
+  await page.getByLabel("판매중").check();
+}
 
 test.describe("PhotoUploader flow", () => {
   test("uploads a valid product photo and shows AI draft request status", async ({
@@ -145,6 +166,73 @@ test.describe("PhotoUploader flow", () => {
     ).toBeEditable();
   });
 
+  test("completes registration after one-tap fallback from AI timeout", async ({
+    page
+  }) => {
+    const title = `수동 fallback 카메라 ${Date.now()}`;
+
+    await page.route("**/api/ai/extractions", async (route) => {
+      await route.fulfill({
+        status: 504,
+        contentType: "application/json",
+        body: buildAiTimeoutErrorBody("req-fallback-completion")
+      });
+    });
+
+    await page.goto("/listings/new");
+    await uploadProductPhoto(page);
+    await page.getByRole("button", { name: "수동 입력으로 계속" }).click();
+
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "fallback"
+    );
+    await expect(page.getByLabel("가격 (원)")).toBeEditable();
+
+    await fillManualListingFields(page, title);
+    await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
+
+    await expect(page).toHaveURL(/\/listings\/[0-9a-f-]+$/u);
+    await expect(page.getByTestId("listing-detail-title")).toHaveText(title);
+    await expect(page.getByTestId("listing-detail-category")).toHaveText("카메라");
+    await expect(page.getByTestId("listing-detail-price")).toHaveText("880,000원");
+    await expect(page.getByTestId("listing-detail-status")).toHaveText("판매중");
+    await expect(page.getByTestId("listing-detail-specification")).toHaveText([
+      "바디 단품",
+      "셔터 1200컷"
+    ]);
+  });
+
+  test("offers manual fallback for low-confidence AI drafts without applying them", async ({
+    page
+  }) => {
+    const title = `저신뢰 fallback 수동 입력 ${Date.now()}`;
+
+    await page.route("**/api/ai/extractions", async (route) => {
+      const meta = readAiRequestMeta(route.request().postData() ?? "");
+
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: buildLowConfidenceAiSuccessBody(meta, "req-low-confidence")
+      });
+    });
+
+    await page.goto("/listings/new");
+    await uploadProductPhoto(page);
+
+    await expect(page.getByRole("status")).toContainText("신뢰도가 낮습니다");
+    await expect(page.getByRole("button", { name: "수동 입력으로 계속" })).toBeVisible();
+    await expect(page.getByLabel("제목")).not.toHaveValue("신뢰 낮은 AI 제목");
+    await expect(page.getByLabel("카테고리")).not.toHaveValue("노트북");
+
+    await page.getByRole("button", { name: "수동 입력으로 계속" }).click();
+    await fillManualListingFields(page, title);
+    await page.getByRole("button", { name: "등록하고 상세 보기" }).click();
+
+    await expect(page).toHaveURL(/\/listings\/[0-9a-f-]+$/u);
+    await expect(page.getByTestId("listing-detail-title")).toHaveText(title);
+  });
+
   test("ignores a late AI response after fallback and preserves manual edits", async ({
     page
   }) => {
@@ -199,6 +287,51 @@ test.describe("PhotoUploader flow", () => {
     await expect(finalFields.getByLabel("핵심 스펙")).toHaveValue(
       "사용자 입력 스펙"
     );
+    await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
+      "fallback"
+    );
+  });
+
+  test("ignores a late AI error after fallback and preserves manual completion fields", async ({
+    page
+  }) => {
+    const lateError = createDeferred();
+    const title = `late-error-preserved-${Date.now()}`;
+
+    await page.route("**/api/ai/extractions", async (route) => {
+      await lateError.promise;
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: {
+            code: "AI_UNAVAILABLE",
+            message: "AI 서비스를 사용할 수 없습니다.",
+            requestId: "req-late-error",
+            details: {
+              recoveryGuide: "수동 입력으로 계속 진행할 수 있습니다.",
+              retryable: true
+            }
+          }
+        })
+      });
+    });
+
+    await page.goto("/listings/new");
+    await uploadProductPhoto(page);
+    await page.getByRole("button", { name: "수동 입력으로 계속" }).click();
+    await fillManualListingFields(page, title);
+
+    lateError.resolve();
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: "AI 서비스를 사용할 수 없습니다" })
+    ).toHaveCount(0);
+    await expect(page.getByLabel("제목")).toHaveValue(title);
+    await expect(page.getByLabel("카테고리")).toHaveValue("카메라");
+    await expect(page.getByLabel("핵심 스펙")).toHaveValue("바디 단품\n셔터 1200컷");
+    await expect(page.getByLabel("가격 (원)")).toHaveValue("880000");
+    await expect(page.getByLabel("판매중")).toBeChecked();
     await expect(page.getByTestId("photo-uploader-request-state")).toHaveText(
       "fallback"
     );
