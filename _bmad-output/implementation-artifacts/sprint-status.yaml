@@ -61,7 +61,7 @@ development_status:
 
   # Epic 3: 자동 가격조정 및 업데이트 신호
   epic-3: in-progress
-  3-1-자동-가격조정-규칙-설정: atdd-done
+  3-1-자동-가격조정-규칙-설정: review
   3-2-규칙-기반-자동-가격조정-실행-및-사유-기록: backlog
   3-3-가격-변경-이력-조회-및-최소-신호-수집: backlog
   epic-3-retrospective: optional
