@@ -11,3 +11,4 @@ coverage/
 *.tsbuildinfo
 .env
 .env.local
+.worktrees/
