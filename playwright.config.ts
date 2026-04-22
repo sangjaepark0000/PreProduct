@@ -6,6 +6,11 @@ import { defineConfig, devices } from "@playwright/test";
 const isCi = Boolean(process.env.CI);
 const baseURL = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const webServerCommand = process.env.PLAYWRIGHT_WEB_SERVER_COMMAND;
+const defaultDatabaseUrl =
+  "postgresql://postgres:postgres@127.0.0.1:5432/preproduct?schema=public";
+const databaseUrl = process.env.DATABASE_URL ?? defaultDatabaseUrl;
+
+process.env.DATABASE_URL = databaseUrl;
 
 function buildWebServerEnv(): Record<string, string> {
   return Object.fromEntries(

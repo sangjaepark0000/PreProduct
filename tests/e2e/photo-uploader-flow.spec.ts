@@ -169,7 +169,7 @@ test.describe("PhotoUploader flow", () => {
   test("completes registration after one-tap fallback from AI timeout", async ({
     page
   }) => {
-    const title = `수동 fallback 카메라 ${Date.now()}`;
+    const title = "수동 fallback 카메라 timeout completion";
 
     await page.route("**/api/ai/extractions", async (route) => {
       await route.fulfill({
@@ -205,7 +205,7 @@ test.describe("PhotoUploader flow", () => {
   test("offers manual fallback for low-confidence AI drafts without applying them", async ({
     page
   }) => {
-    const title = `저신뢰 fallback 수동 입력 ${Date.now()}`;
+    const title = "저신뢰 fallback 수동 입력 completion";
 
     await page.route("**/api/ai/extractions", async (route) => {
       const meta = readAiRequestMeta(route.request().postData() ?? "");
@@ -296,7 +296,7 @@ test.describe("PhotoUploader flow", () => {
     page
   }) => {
     const lateError = createDeferred();
-    const title = `late-error-preserved-${Date.now()}`;
+    const title = "late-error-preserved-manual-title";
 
     await page.route("**/api/ai/extractions", async (route) => {
       await lateError.promise;

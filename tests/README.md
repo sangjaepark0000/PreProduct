@@ -4,8 +4,8 @@
 
 1. Use Node.js `24.14.1` from [.nvmrc](/C:/Users/ok.works/Projects/PreProduct/.nvmrc).
    Local validation in this workspace also passed on Node `22.18.0`.
-2. Copy `.env.example` to `.env` and set `BASE_URL`, `API_URL`, and `PLAYWRIGHT_WEB_SERVER_COMMAND`.
-   DB-backed E2E specs also require `DATABASE_URL`; without it those specs are skipped with an explicit Playwright reason instead of failing inside the app server.
+2. Copy `.env.example` to `.env` and set `BASE_URL`, `API_URL`, `DATABASE_URL`, and `PLAYWRIGHT_WEB_SERVER_COMMAND`.
+   DB-backed E2E specs require `DATABASE_URL`; without it those specs are skipped with an explicit Playwright reason instead of failing inside the app server.
 3. Install dependencies with `pnpm install`.
 4. Install the browser binary with `pnpm exec playwright install chromium`.
 
@@ -40,6 +40,7 @@
 - Set `CI=true` in CI so retries, `forbidOnly`, and worker tuning apply automatically.
 - Root baseline gates now live in `lint`, `typecheck`, `unit`, `contract`, and `perf-budget`.
 - Provide `PLAYWRIGHT_WEB_SERVER_COMMAND` when E2E should boot the Next.js app deterministically.
+- Persistence E2E needs a reachable Postgres test database. If `DATABASE_URL` is not set, Playwright injects the local `.env.example` default into both the test process and launched web server.
 
 ## References
 
