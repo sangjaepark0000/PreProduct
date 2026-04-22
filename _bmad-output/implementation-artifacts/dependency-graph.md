@@ -1,5 +1,5 @@
 # Story Dependency Graph
-_Last updated: 2026-04-22T13:14:09.2262823+09:00_
+_Last updated: 2026-04-22T14:15:59.1605442+09:00_
 
 ## Stories
 
@@ -14,8 +14,8 @@ _Last updated: 2026-04-22T13:14:09.2262823+09:00_
 | 2.3 | 2 | PriceSuggestionCard 기반 추천가 수용/수정 확정 | done | #13 | #28 | merged | 2.2 | ✅ Yes (done) |
 | 2.4 | 2 | AI 실패/저신뢰 1탭 수동 fallback 완주 | done | #14 | #26 | merged | 2.1 | ✅ Yes (done) |
 | 3.1 | 3 | 자동 가격조정 규칙 설정 | done | #15 | #29 | merged | none | ✅ Yes (done) |
-| 3.2 | 3 | 규칙 기반 자동 가격조정 실행 및 사유 기록 | backlog | #16 | — | — | 3.1 | ✅ Yes |
-| 3.3 | 3 | 가격 변경 이력 조회 및 최소 신호 수집 | backlog | #17 | — | — | 3.2 | ❌ No (depends on 3.2) |
+| 3.2 | 3 | 규칙 기반 자동 가격조정 실행 및 사유 기록 | done | #16 | #30 | merged | 3.1 | ✅ Yes (done) |
+| 3.3 | 3 | 가격 변경 이력 조회 및 최소 신호 수집 | backlog | #17 | — | — | 3.2 | ✅ Yes |
 | 4.1 | 4 | MVP 핵심 이벤트 4종 계측 | backlog | #18 | — | — | 2.3, 3.2 | ❌ No (epic 3 not complete) |
 | 4.2 | 4 | KPI 및 가드레일 모니터링 화면 | backlog | #19 | — | — | 4.1 | ❌ No (epic 3 not complete) |
 | 4.3 | 4 | Go/Hold/Stop 판정 및 Feature Flag 운영 | backlog | #20 | — | — | 4.2 | ❌ No (epic 3 not complete) |
@@ -42,4 +42,4 @@ _Last updated: 2026-04-22T13:14:09.2262823+09:00_
 
 ## Notes
 
-Dependency mapping favors parallel work only where the story acceptance criteria are independent and lower epic gates are satisfied. Stories 2.1, 2.2, 2.3, and 2.4 are merged via PRs #25, #27, #28, and #26, so Epic 2 is complete. Story 3.1 merged via PR #29, making Story 3.2 the next ready backlog story. Epic 4 depends on event sources from earlier epics, with Story 4.4 functionally independent inside the epic but still blocked by lower-epic completion rules. Epic 5 remains deferred and blocked until Epic 4 is complete.
+Dependency mapping favors parallel work only where the story acceptance criteria are independent and lower epic gates are satisfied. Stories 2.1, 2.2, 2.3, and 2.4 are merged via PRs #25, #27, #28, and #26, so Epic 2 is complete. Story 3.1 merged via PR #29 and Story 3.2 merged via PR #30, making Story 3.3 the next ready backlog story. Epic 4 depends on event sources from earlier epics, with Story 4.4 functionally independent inside the epic but still blocked by lower-epic completion rules. Epic 5 remains deferred and blocked until Epic 4 is complete.
