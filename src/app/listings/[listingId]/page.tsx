@@ -19,6 +19,7 @@ import {
   handleUpdateListingStatusSubmission,
   type UpdateListingStatusFormState
 } from "@/feature/listing/actions/update-listing-status.action";
+import { getActiveAutoAdjustRuleForListing } from "@/feature/listing/actions/save-auto-adjust-rule.action";
 import { ListingStatusForm } from "@/feature/listing/components/listing-status-form.client";
 import { getListingRepository } from "@/infra/listing/listing.repository";
 
@@ -69,6 +70,9 @@ export default async function ListingDetailPage({
   }
 
   const resolvedListing = listing;
+  const activeAutoAdjustRule = await getActiveAutoAdjustRuleForListing(
+    resolvedListing.id
+  );
 
   async function updateListingStatusFormAction(
     previousState: UpdateListingStatusFormState,
@@ -155,6 +159,32 @@ export default async function ListingDetailPage({
                 <Typography data-testid="listing-detail-price">
                   {priceFormatter.format(resolvedListing.priceKrw)}원
                 </Typography>
+              </Stack>
+
+              <Divider />
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{ justifyContent: "space-between", alignItems: { sm: "center" } }}
+              >
+                <Stack spacing={0.75}>
+                  <Typography variant="overline">자동 가격조정</Typography>
+                  <Typography data-testid="listing-detail-auto-adjust-rule">
+                    {activeAutoAdjustRule
+                      ? `${activeAutoAdjustRule.periodDays}일마다 ${activeAutoAdjustRule.discountRatePercent}% 인하, 최저 ${priceFormatter.format(
+                          activeAutoAdjustRule.floorPriceKrw
+                        )}원`
+                      : "아직 설정된 규칙이 없습니다."}
+                  </Typography>
+                </Stack>
+                <Button
+                  href={`/listings/${resolvedListing.id}/auto-adjust-rule`}
+                  variant="outlined"
+                  sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+                >
+                  자동 가격조정 설정
+                </Button>
               </Stack>
 
               <Divider />
