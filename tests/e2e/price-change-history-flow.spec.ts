@@ -85,70 +85,72 @@ async function cleanupListing(listingId: string) {
 }
 
 test.describe("Price change history flow", () => {
-  let listingId: string;
-
   test.skip(
     !hasDatabaseUrl,
     "DATABASE_URL is required for DB-backed price change history E2E tests."
   );
 
-  test.beforeEach(async () => {
-    listingId = randomUUID();
-  });
-
-  test.afterEach(async () => {
-    await cleanupListing(listingId);
-  });
-
   test("shows newest history first with before and after price, applied time, and reason", async ({
     page
   }) => {
-    await seedAppliedPriceChanges(listingId);
+    const listingId = randomUUID();
 
-    await page.goto(`/listings/${listingId}/price-change-history`);
+    try {
+      await seedAppliedPriceChanges(listingId);
 
-    await expect(page.getByTestId("price-change-history-page")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "가격 변경 이력" })).toBeVisible();
-    const rows = page.getByTestId("price-change-history-row");
+      await page.goto(`/listings/${listingId}/price-change-history`);
 
-    await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0).getByTestId("price-change-history-before-price")).toContainText(
-      "1,702,000"
-    );
-    await expect(rows.nth(0).getByTestId("price-change-history-after-price")).toContainText(
-      "1,530,000"
-    );
-    await expect(rows.nth(0).getByTestId("price-change-history-applied-at")).toContainText(
-      "2026-04-23"
-    );
-    await expect(rows.nth(0).getByTestId("price-change-history-reason")).toContainText(
-      "retry-recovered"
-    );
-    await expect(rows.nth(1).getByTestId("price-change-history-before-price")).toContainText(
-      "1,850,000"
-    );
-    await expect(rows.nth(1).getByTestId("price-change-history-after-price")).toContainText(
-      "1,702,000"
-    );
-    await expect(rows.nth(1).getByTestId("price-change-history-applied-at")).toContainText(
-      "2026-04-22"
-    );
-    await expect(rows.nth(1).getByTestId("price-change-history-reason")).toContainText(
-      "due-rule-applied"
-    );
+      await expect(page.getByTestId("price-change-history-page")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "가격 변경 이력" })).toBeVisible();
+      const rows = page.getByTestId("price-change-history-row");
+
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0).getByTestId("price-change-history-before-price")).toContainText(
+        "1,702,000"
+      );
+      await expect(rows.nth(0).getByTestId("price-change-history-after-price")).toContainText(
+        "1,530,000"
+      );
+      await expect(rows.nth(0).getByTestId("price-change-history-applied-at")).toContainText(
+        "2026-04-23"
+      );
+      await expect(rows.nth(0).getByTestId("price-change-history-reason")).toContainText(
+        "retry-recovered"
+      );
+      await expect(rows.nth(1).getByTestId("price-change-history-before-price")).toContainText(
+        "1,850,000"
+      );
+      await expect(rows.nth(1).getByTestId("price-change-history-after-price")).toContainText(
+        "1,702,000"
+      );
+      await expect(rows.nth(1).getByTestId("price-change-history-applied-at")).toContainText(
+        "2026-04-22"
+      );
+      await expect(rows.nth(1).getByTestId("price-change-history-reason")).toContainText(
+        "due-rule-applied"
+      );
+    } finally {
+      await cleanupListing(listingId);
+    }
   });
 
   test("shows an empty state when a listing has no applied price changes", async ({
     page
   }) => {
-    await seedListing(listingId, 1_850_000);
+    const listingId = randomUUID();
 
-    await page.goto(`/listings/${listingId}/price-change-history`);
+    try {
+      await seedListing(listingId, 1_850_000);
 
-    await expect(page.getByTestId("price-change-history-empty-state")).toBeVisible();
-    await expect(page.getByTestId("price-change-history-empty-state")).toContainText(
-      "아직 가격 변경 이력이 없습니다."
-    );
-    await expect(page.getByTestId("price-change-history-row")).toHaveCount(0);
+      await page.goto(`/listings/${listingId}/price-change-history`);
+
+      await expect(page.getByTestId("price-change-history-empty-state")).toBeVisible();
+      await expect(page.getByTestId("price-change-history-empty-state")).toContainText(
+        "아직 가격 변경 이력이 없습니다."
+      );
+      await expect(page.getByTestId("price-change-history-row")).toHaveCount(0);
+    } finally {
+      await cleanupListing(listingId);
+    }
   });
 });

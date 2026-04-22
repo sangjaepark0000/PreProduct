@@ -67,9 +67,9 @@ export function PriceChangeHistoryList({
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <TableRow
-              key={`${row.listingId}-${row.appliedAt}-${row.reasonCode}`}
+              key={`${row.listingId}-${row.appliedAt}-${row.reasonCode}-${index}`}
               data-testid="price-change-history-row"
             >
               <TableCell data-testid="price-change-history-before-price">
