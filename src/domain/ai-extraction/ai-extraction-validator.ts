@@ -70,12 +70,6 @@ function hasValidImageSignature(bytes: Uint8Array, mimeType: string): boolean {
   return false;
 }
 
-function isDeterministicTestFixture(bytes: Uint8Array): boolean {
-  const text = new TextDecoder().decode(bytes);
-
-  return ["fake-jpeg-bytes", "fake-png-bytes", "fake-webp-bytes"].includes(text);
-}
-
 function isCorruptedFixture(bytes: Uint8Array): boolean {
   return new TextDecoder().decode(bytes).includes("corrupted-image-fixture");
 }
@@ -137,8 +131,7 @@ export async function validateAiExtractionPhoto(
 
   if (
     isCorruptedFixture(bytes) ||
-    (!hasValidImageSignature(bytes, file.type) &&
-      !isDeterministicTestFixture(bytes))
+    !hasValidImageSignature(bytes, file.type)
   ) {
     return validationError(
       "CORRUPTED_IMAGE",

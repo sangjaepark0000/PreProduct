@@ -50,7 +50,23 @@ function errorResponse(
 
 export async function POST(request: Request) {
   const requestId = createRequestId();
-  const formData = await request.formData();
+  let formData: FormData;
+
+  try {
+    formData = await request.formData();
+  } catch {
+    return errorResponse(
+      400,
+      requestId,
+      "INVALID_REQUEST",
+      "AI 초안 요청 형식이 올바르지 않습니다.",
+      {
+        recoveryGuide: "사진을 다시 선택해 요청을 새로 시작해 주세요.",
+        retryable: true
+      }
+    );
+  }
+
   const photo = formData.get("photo");
 
   if (!isFileLike(photo)) {

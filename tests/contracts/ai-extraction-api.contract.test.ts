@@ -9,7 +9,7 @@ type TestFileOptions = {
   name?: string;
   type?: string;
   sizeBytes?: number;
-  contents?: string;
+  contents?: string | Uint8Array;
 };
 
 const requestMeta = {
@@ -18,15 +18,26 @@ const requestMeta = {
   requestVersion: 1
 } as const;
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const arrayBuffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(arrayBuffer).set(bytes);
+
+  return arrayBuffer;
+}
+
 function createTestFile({
   name = "macbook-photo.jpg",
   type = "image/jpeg",
   sizeBytes,
-  contents = "fake-jpeg-bytes"
+  contents
 }: TestFileOptions = {}): File {
   const payload = sizeBytes
-    ? new Uint8Array(sizeBytes)
-    : new TextEncoder().encode(contents);
+    ? new ArrayBuffer(sizeBytes)
+    : contents instanceof Uint8Array
+      ? toArrayBuffer(contents)
+      : typeof contents === "string"
+        ? contents
+        : toArrayBuffer(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]));
 
   return new File([payload], name, { type });
 }
@@ -78,6 +89,32 @@ describe("AI extraction API contract", () => {
       },
       meta: {
         requestId: expect.any(String)
+      }
+    });
+  });
+
+  it("rejects malformed multipart requests with the standard error envelope", async () => {
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/ai/extractions", {
+        method: "POST",
+        headers: {
+          "content-type": "multipart/form-data; boundary=broken"
+        },
+        body: "not a valid multipart payload"
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(aiExtractionErrorEnvelopeSchema.parse(body)).toMatchObject({
+      error: {
+        code: "INVALID_REQUEST",
+        message: expect.any(String),
+        requestId: expect.any(String),
+        details: {
+          recoveryGuide: expect.any(String),
+          retryable: true
+        }
       }
     });
   });
