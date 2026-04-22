@@ -55,7 +55,7 @@ development_status:
   epic-2: in-progress
   2-1-photouploader-기반-이미지-업로드와-ai-초안-요청: done
   2-2-검색-및-상태-필터: done
-  2-3-공개-상세-조회와-프리리스팅-배지: backlog
+  2-3-PriceSuggestionCard-기반-추천가-수용-수정-확정: done
   2-4-ai-실패-저신뢰-1탭-수동-fallback-완주: done
   epic-2-retrospective: optional
 
