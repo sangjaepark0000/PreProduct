@@ -16,4 +16,17 @@ model Listing {
   currentStatus     String   @default("판매중")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  autoAdjustRule    AutoAdjustRule?
+}
+
+model AutoAdjustRule {
+  id                  String   @id @default(uuid()) @db.Uuid
+  listingId           String   @unique @db.Uuid
+  listing             Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  periodDays          Int
+  discountRatePercent Int
+  floorPriceKrw       Int
+  enabled             Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
