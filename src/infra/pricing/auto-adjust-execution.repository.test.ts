@@ -336,7 +336,43 @@ describe("auto-adjust execution repository", () => {
     });
   });
 
-  it("recovers a partial-failure run key into a single applied result", async () => {
+  it("continues a pre-apply partial-failure run key into a single applied result", async () => {
+    mockCreateExecution.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002"
+      })
+    );
+    mockFindUniqueExecution.mockResolvedValueOnce({
+      id: "execution-id",
+      listingId: input.listingId,
+      runKey: input.runKey,
+      traceId: input.traceId,
+      ruleRevision: input.ruleRevision,
+      status: "partial-failure",
+      reasonCode: null,
+      skipReason: null,
+      beforePriceKrw: 1_850_000,
+      afterPriceKrw: null,
+      eventId: null,
+      event: null,
+      evaluationAt: new Date(input.requestedAt),
+      appliedAt: null,
+      executedAt: new Date(input.requestedAt),
+      duplicateCount: 0,
+      createdAt: new Date(input.requestedAt),
+      updatedAt: new Date(input.requestedAt)
+    });
+    const repository = createAutoAdjustExecutionRepository(prismaClient);
+
+    await expect(repository.executeRun(input)).resolves.toMatchObject({
+      status: "applied",
+      reasonCode: "retry-recovered",
+      applyCount: 1
+    });
+    expect(mockUpdateListing).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers an applied partial failure with a missing after price from the current listing price", async () => {
     mockCreateExecution.mockRejectedValueOnce(
       Object.assign(new Error("Unique constraint failed"), {
         code: "P2002"
@@ -362,14 +398,31 @@ describe("auto-adjust execution repository", () => {
       createdAt: new Date(input.requestedAt),
       updatedAt: new Date(input.requestedAt)
     });
+    mockFindUniqueListing.mockResolvedValueOnce({
+      ...listingWithRule,
+      priceKrw: 1_702_000
+    });
     const repository = createAutoAdjustExecutionRepository(prismaClient);
 
     await expect(repository.executeRun(input)).resolves.toMatchObject({
       status: "applied",
       reasonCode: "retry-recovered",
+      beforePriceKrw: 1_850_000,
+      afterPriceKrw: 1_702_000,
+      appliedAt: "2026-04-22T01:59:59.000Z",
       applyCount: 1
     });
-    expect(mockUpdateListing).toHaveBeenCalledTimes(1);
+    expect(mockUpdateListing).not.toHaveBeenCalled();
+    expect(mockUpdateExecution).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "applied",
+          reasonCode: "retry-recovered",
+          beforePriceKrw: 1_850_000,
+          afterPriceKrw: 1_702_000
+        })
+      })
+    );
   });
 
   it("recovers an already-applied partial failure without applying the discount again", async () => {

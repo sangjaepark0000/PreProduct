@@ -466,12 +466,11 @@ async function persistResult(args: {
 function recoverAlreadyAppliedPartialFailure(args: {
   input: ExecuteAutoAdjustRunInput;
   existing: AutoAdjustExecutionRecord;
+  currentPriceKrw: number;
 }): AutoAdjustExecutionRepositoryResult | null {
   if (
     args.existing.status !== "partial-failure" ||
-    !args.existing.appliedAt ||
-    args.existing.beforePriceKrw === null ||
-    args.existing.afterPriceKrw === null
+    !args.existing.appliedAt
   ) {
     return null;
   }
@@ -484,8 +483,8 @@ function recoverAlreadyAppliedPartialFailure(args: {
     evaluationAt: args.input.requestedAt,
     status: "applied",
     reasonCode: "retry-recovered",
-    beforePriceKrw: args.existing.beforePriceKrw,
-    afterPriceKrw: args.existing.afterPriceKrw,
+    beforePriceKrw: args.existing.beforePriceKrw ?? args.input.currentPriceKrw,
+    afterPriceKrw: args.existing.afterPriceKrw ?? args.currentPriceKrw,
     appliedAt: args.existing.appliedAt.toISOString(),
     applyCount: 1
   };
@@ -570,7 +569,11 @@ export function createAutoAdjustExecutionRepository(
           (activeRule ? getRuleDueAt(activeRule) : input.requestedAt);
         const recoveredPartial =
           existing ?
-            recoverAlreadyAppliedPartialFailure({ input, existing })
+            recoverAlreadyAppliedPartialFailure({
+              input,
+              existing,
+              currentPriceKrw: listing?.priceKrw ?? input.currentPriceKrw
+            })
           : null;
         const result = evaluateAutoAdjustExecution({
           listingId: input.listingId,
