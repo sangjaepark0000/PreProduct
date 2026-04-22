@@ -72,6 +72,30 @@ export function buildAiSuccessBody(
   });
 }
 
+export function buildLowConfidenceAiSuccessBody(
+  meta: AiRequestMeta,
+  requestId: string
+) {
+  return JSON.stringify({
+    data: {
+      status: "requesting",
+      clientRequestId: meta.clientRequestId,
+      idempotencyKey: meta.idempotencyKey,
+      requestVersion: meta.requestVersion,
+      draft: {
+        title: "신뢰 낮은 AI 제목",
+        category: "노트북",
+        keySpecifications: ["AI 추정 스펙"],
+        confidence: 0.31,
+        fallbackRecommended: true
+      }
+    },
+    meta: {
+      requestId
+    }
+  });
+}
+
 export function buildAiTimeoutErrorBody(requestId: string) {
   return JSON.stringify({
     error: {

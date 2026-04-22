@@ -15,6 +15,40 @@ function buildFormData(values: Record<string, string>): FormData {
 }
 
 describe("handleCreateListingSubmission", () => {
+  it("submits manual fallback completion through the existing listing input shape", async () => {
+    const createListing = jest.fn(async () => ({
+      id: "0f8f90a0-c621-40db-a400-f77910367661"
+    }));
+
+    const result = await handleCreateListingSubmission(
+      {
+        createListing
+      },
+      initialCreateListingFormState,
+      buildFormData({
+        title: "수동 fallback 카메라",
+        category: "카메라",
+        keySpecificationsText: "바디 단품\n셔터 1200컷",
+        priceKrw: "880000",
+        status: "판매중"
+      })
+    );
+
+    expect(createListing).toHaveBeenCalledWith({
+      title: "수동 fallback 카메라",
+      category: "카메라",
+      keySpecifications: ["바디 단품", "셔터 1200컷"],
+      priceKrw: 880000,
+      status: "판매중",
+      initialStatus: "판매중",
+      currentStatus: "판매중"
+    });
+    expect(result).toEqual({
+      status: "success",
+      listingId: "0f8f90a0-c621-40db-a400-f77910367661"
+    });
+  });
+
   it("returns validation errors while preserving the submitted values", async () => {
     const result = await handleCreateListingSubmission(
       {
