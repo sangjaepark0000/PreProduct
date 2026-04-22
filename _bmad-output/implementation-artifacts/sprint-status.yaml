@@ -1,5 +1,5 @@
 # generated: 2026-04-17
-# last_updated: 2026-04-19
+# last_updated: 2026-04-22
 # project: PreProduct
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-17
-last_updated: 2026-04-19
+last_updated: 2026-04-22
 project: PreProduct
 project_key: NOKEY
 tracking_system: file-system
@@ -51,9 +51,9 @@ development_status:
   1-4-최소-검증-관측: done
   epic-1-retrospective: optional
 
-  # Epic 2: 구매자 탐색과 공개 매물 발견
-  epic-2: backlog
-  2-1-공개-매물-목록-피드: backlog
+  # Epic 2: AI 보조 등록 및 실패 복구
+  epic-2: in-progress
+  2-1-photouploader-기반-이미지-업로드와-ai-초안-요청: done
   2-2-검색-및-상태-필터: backlog
   2-3-공개-상세-조회와-프리리스팅-배지: backlog
   epic-2-retrospective: optional

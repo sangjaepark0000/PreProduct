@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   Alert,
   AlertTitle,
@@ -25,6 +25,8 @@ import {
 } from "@/feature/listing/actions/create-listing.action";
 import { prelistingStatusValues } from "@/domain/prelisting-status/prelisting-status";
 import { ListingSubmitBar } from "@/feature/listing/components/listing-submit-bar.client";
+import { PhotoUploader } from "@/feature/listing/components/photo-uploader.client";
+import type { AiExtractionDraft } from "@/shared/contracts/ai-extraction";
 
 type ListingFormProps = {
   action: (
@@ -104,40 +106,10 @@ export function ListingForm({ action }: ListingFormProps) {
                 </Alert>
               ) : null}
 
-              <TextField
-                name="title"
-                label="제목"
-                defaultValue={state.values.title}
-                error={Boolean(state.fieldErrors.title)}
-                helperText={state.fieldErrors.title ?? "예: 맥북 에어 M3 13인치"}
-                fullWidth
-                autoComplete="off"
-                slotProps={{ htmlInput: { maxLength: 120 } }}
-              />
-
-              <TextField
-                name="category"
-                label="카테고리"
-                defaultValue={state.values.category}
-                error={Boolean(state.fieldErrors.category)}
-                helperText={state.fieldErrors.category ?? "예: 노트북, 카메라, 게임기"}
-                fullWidth
-                autoComplete="off"
-                slotProps={{ htmlInput: { maxLength: 60 } }}
-              />
-
-              <TextField
-                name="keySpecificationsText"
-                label="핵심 스펙"
-                defaultValue={state.values.keySpecificationsText}
-                error={Boolean(state.fieldErrors.keySpecificationsText)}
-                helperText={
-                  state.fieldErrors.keySpecificationsText ??
-                  "한 줄에 한 개씩 입력해 주세요. 예: 16GB RAM"
-                }
-                fullWidth
-                multiline
-                minRows={4}
+              <ListingDraftFields
+                key={formResetKey}
+                values={state.values}
+                fieldErrors={state.fieldErrors}
               />
 
               <TextField
@@ -189,5 +161,73 @@ export function ListingForm({ action }: ListingFormProps) {
         </Stack>
       </Container>
     </Box>
+  );
+}
+
+type ListingDraftFieldsProps = {
+  values: CreateListingFormState["values"];
+  fieldErrors: CreateListingFormState["fieldErrors"];
+};
+
+function ListingDraftFields({ values, fieldErrors }: ListingDraftFieldsProps) {
+  const [title, setTitle] = useState(values.title);
+  const [category, setCategory] = useState(values.category);
+  const [keySpecificationsText, setKeySpecificationsText] = useState(
+    values.keySpecificationsText
+  );
+
+  function applyAiDraft(draft: AiExtractionDraft) {
+    setTitle((current) => (current.trim().length > 0 ? current : draft.title));
+    setCategory((current) =>
+      current.trim().length > 0 ? current : draft.category
+    );
+    setKeySpecificationsText((current) =>
+      current.trim().length > 0 ? current : draft.keySpecifications.join("\n")
+    );
+  }
+
+  return (
+    <>
+      <PhotoUploader onDraftReady={applyAiDraft} onFallback={() => undefined} />
+
+      <TextField
+        name="title"
+        label="제목"
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        error={Boolean(fieldErrors.title)}
+        helperText={fieldErrors.title ?? "예: 맥북 에어 M3 13인치"}
+        fullWidth
+        autoComplete="off"
+        slotProps={{ htmlInput: { maxLength: 120 } }}
+      />
+
+      <TextField
+        name="category"
+        label="카테고리"
+        value={category}
+        onChange={(event) => setCategory(event.target.value)}
+        error={Boolean(fieldErrors.category)}
+        helperText={fieldErrors.category ?? "예: 노트북, 카메라, 게임기"}
+        fullWidth
+        autoComplete="off"
+        slotProps={{ htmlInput: { maxLength: 60 } }}
+      />
+
+      <TextField
+        name="keySpecificationsText"
+        label="핵심 스펙"
+        value={keySpecificationsText}
+        onChange={(event) => setKeySpecificationsText(event.target.value)}
+        error={Boolean(fieldErrors.keySpecificationsText)}
+        helperText={
+          fieldErrors.keySpecificationsText ??
+          "한 줄에 한 개씩 입력해 주세요. 예: 16GB RAM"
+        }
+        fullWidth
+        multiline
+        minRows={4}
+      />
+    </>
   );
 }
