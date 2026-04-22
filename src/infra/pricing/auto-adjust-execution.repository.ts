@@ -45,6 +45,10 @@ type ListingWithRuleRecord = {
 };
 
 type AutoAdjustExecutionTransactionClient = {
+  $queryRaw?: (
+    strings: TemplateStringsArray,
+    ...values: unknown[]
+  ) => Promise<unknown>;
   autoAdjustExecution: {
     create: (args: {
       data: {
@@ -63,6 +67,19 @@ type AutoAdjustExecutionTransactionClient = {
           listingId: string;
           runKey: string;
         };
+      };
+    }) => Promise<AutoAdjustExecutionRecord | null>;
+    findFirst: (args: {
+      where: {
+        listingId: string;
+        ruleRevision: string;
+        status: string;
+        appliedAt: {
+          not: null;
+        };
+      };
+      orderBy: {
+        appliedAt: "desc";
       };
     }) => Promise<AutoAdjustExecutionRecord | null>;
     update: (args: {
@@ -196,6 +213,29 @@ function getRuleDueAt(rule: { periodDays: number; updatedAt: string }): string {
   return dueAt.toISOString();
 }
 
+function addPeriodDays(date: Date, periodDays: number): Date {
+  const dueAt = new Date(date);
+  dueAt.setUTCDate(dueAt.getUTCDate() + periodDays);
+
+  return dueAt;
+}
+
+async function lockListingForExecution(
+  transaction: AutoAdjustExecutionTransactionClient,
+  listingId: string
+): Promise<void> {
+  if (!transaction.$queryRaw) {
+    return;
+  }
+
+  await transaction.$queryRaw`
+    SELECT id
+    FROM "Listing"
+    WHERE id = ${listingId}::uuid
+    FOR UPDATE
+  `;
+}
+
 function toRuleSnapshot(listing: ListingWithRuleRecord) {
   if (!listing.autoAdjustRule) {
     return null;
@@ -283,14 +323,96 @@ async function recordDuplicate(
   return existing;
 }
 
+async function findLatestAppliedForRule(args: {
+  transaction: AutoAdjustExecutionTransactionClient;
+  listingId: string;
+  ruleRevision: string | null;
+}): Promise<AutoAdjustExecutionRecord | null> {
+  if (!args.ruleRevision) {
+    return null;
+  }
+
+  return args.transaction.autoAdjustExecution.findFirst({
+    where: {
+      listingId: args.listingId,
+      ruleRevision: args.ruleRevision,
+      status: "applied",
+      appliedAt: {
+        not: null
+      }
+    },
+    orderBy: {
+      appliedAt: "desc"
+    }
+  });
+}
+
+async function incrementDuplicateCount(
+  transaction: AutoAdjustExecutionTransactionClient,
+  record: AutoAdjustExecutionRecord
+): Promise<void> {
+  await transaction.autoAdjustExecution.update({
+    where: {
+      listingId_runKey: {
+        listingId: record.listingId,
+        runKey: record.runKey
+      }
+    },
+    data: {
+      duplicateCount: {
+        increment: 1
+      }
+    }
+  });
+}
+
+function toListingConflictDuplicateResult(args: {
+  input: ExecuteAutoAdjustRunInput;
+  existing: AutoAdjustExecutionRecord;
+}): AutoAdjustExecutionRepositoryResult {
+  return {
+    listingId: args.input.listingId,
+    runKey: args.input.runKey,
+    traceId: args.input.traceId,
+    ruleRevision: args.existing.ruleRevision,
+    evaluationAt: args.input.requestedAt,
+    status: "duplicate",
+    duplicateOfRunKey: args.existing.runKey
+  };
+}
+
 async function persistResult(args: {
   transaction: AutoAdjustExecutionTransactionClient;
   input: ExecuteAutoAdjustRunInput;
   result: AutoAdjustExecutionResult;
   event?: PricingAutoAdjustAppliedV1;
+  claimedRun?: boolean;
   skipListingUpdate?: boolean;
 }): Promise<void> {
   if (args.result.status === "duplicate") {
+    if (args.claimedRun) {
+      await args.transaction.autoAdjustExecution.update({
+        where: {
+          listingId_runKey: {
+            listingId: args.input.listingId,
+            runKey: args.input.runKey
+          }
+        },
+        data: {
+          status: "duplicate",
+          reasonCode: null,
+          skipReason: null,
+          beforePriceKrw: null,
+          afterPriceKrw: null,
+          eventId: null,
+          event: null,
+          evaluationAt: new Date(args.result.evaluationAt),
+          appliedAt: null,
+          executedAt: new Date(args.result.evaluationAt)
+        }
+      });
+    }
+
     return;
   }
 
@@ -382,6 +504,8 @@ export function createAutoAdjustExecutionRepository(
           return toDuplicateResult({ input, existing });
         }
 
+        await lockListingForExecution(transaction, input.listingId);
+
         const listing = await transaction.listing.findUnique({
           where: {
             id: input.listingId
@@ -407,7 +531,43 @@ export function createAutoAdjustExecutionRepository(
           requestedRuleRevision: input.ruleRevision
         });
         const activeRuleRevision = activeRule?.ruleRevision ?? null;
-        const dueAt = activeRule ? getRuleDueAt(activeRule) : input.requestedAt;
+        const latestApplied =
+          activeRuleRevision === input.ruleRevision
+            ? await findLatestAppliedForRule({
+                transaction,
+                listingId: input.listingId,
+                ruleRevision: activeRuleRevision
+              })
+            : null;
+        const nextDueAfterLatest =
+          latestApplied?.appliedAt && activeRule
+            ? addPeriodDays(latestApplied.appliedAt, activeRule.periodDays)
+            : null;
+        const listingConflictDuplicate =
+          latestApplied &&
+          nextDueAfterLatest &&
+          new Date(input.requestedAt).getTime() < nextDueAfterLatest.getTime()
+            ? toListingConflictDuplicateResult({
+                input,
+                existing: latestApplied
+              })
+            : null;
+
+        if (listingConflictDuplicate && latestApplied) {
+          await incrementDuplicateCount(transaction, latestApplied);
+          await persistResult({
+            transaction,
+            input,
+            result: listingConflictDuplicate,
+            claimedRun: Boolean(claimed)
+          });
+
+          return listingConflictDuplicate;
+        }
+
+        const dueAt =
+          nextDueAfterLatest?.toISOString() ??
+          (activeRule ? getRuleDueAt(activeRule) : input.requestedAt);
         const recoveredPartial =
           existing ?
             recoverAlreadyAppliedPartialFailure({ input, existing })
@@ -444,6 +604,7 @@ export function createAutoAdjustExecutionRepository(
           input,
           result: finalResult,
           event,
+          claimedRun: Boolean(claimed),
           skipListingUpdate: recoveredPartial !== null
         });
 

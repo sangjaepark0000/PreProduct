@@ -1,6 +1,6 @@
 # Story 3.2: 규칙 기반 자동 가격조정 실행 및 사유 기록
 
-Status: review
+Status: done
 
 ## Story
 
@@ -61,6 +61,10 @@ so that 수동 개입 없이 최신 가격 상태를 유지할 수 있다.
   - [x] floor-violation skip, stale rule skip, duplicate run, concurrent run, retry-after-partial-failure, happy-path apply를 각각 고정한다.
   - [x] 라우트/통합 테스트로 producer helper가 기대한 schema를 발행하고, 동일 run key 재호출 시 중복 적용되지 않음을 확인한다.
   - [x] Story 3.3의 history/minimal-signal 저장은 아직 구현하지 않는다.
+
+### Review Findings
+
+- [x] [Review][Patch] Same-listing concurrent runs with different run keys can both apply a discount [src/infra/pricing/auto-adjust-execution.repository.ts] — fixed with listing-level transaction locking, same-rule duplicate detection within the active period, and focused repository regression tests.
 
 ## Dev Notes
 

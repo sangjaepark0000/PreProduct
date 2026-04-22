@@ -6,14 +6,18 @@ import { createAutoAdjustExecutionRepository } from "@/infra/pricing/auto-adjust
 
 const mockCreateExecution = jest.fn();
 const mockFindUniqueExecution = jest.fn();
+const mockFindFirstExecution = jest.fn();
 const mockUpdateExecution = jest.fn();
 const mockFindUniqueListing = jest.fn();
 const mockUpdateListing = jest.fn();
+const mockQueryRaw = jest.fn();
 
 const transaction = {
+  $queryRaw: mockQueryRaw,
   autoAdjustExecution: {
     create: mockCreateExecution,
     findUnique: mockFindUniqueExecution,
+    findFirst: mockFindFirstExecution,
     update: mockUpdateExecution,
     deleteMany: jest.fn()
   },
@@ -73,9 +77,11 @@ describe("auto-adjust execution repository", () => {
       createdAt: new Date(input.requestedAt),
       updatedAt: new Date(input.requestedAt)
     });
+    mockFindFirstExecution.mockResolvedValue(null);
     mockFindUniqueListing.mockResolvedValue(listingWithRule);
     mockUpdateExecution.mockResolvedValue({});
     mockUpdateListing.mockResolvedValue({});
+    mockQueryRaw.mockResolvedValue([]);
   });
 
   it("claims a run key, applies a due rule, stores the event, and mutates listing price once", async () => {
@@ -212,6 +218,122 @@ describe("auto-adjust execution repository", () => {
       activeRuleRevision: input.ruleRevision
     });
     expect(mockUpdateListing).not.toHaveBeenCalled();
+  });
+
+  it("records same-listing same-rule conflicts as duplicates without applying another discount", async () => {
+    mockFindFirstExecution.mockResolvedValueOnce({
+      id: "previous-execution-id",
+      listingId: input.listingId,
+      runKey: "run-20260422-previous",
+      traceId: input.traceId,
+      ruleRevision: input.ruleRevision,
+      status: "applied",
+      reasonCode: "due-rule-applied",
+      skipReason: null,
+      beforePriceKrw: 1_850_000,
+      afterPriceKrw: 1_702_000,
+      eventId: "fdd23504-9420-5d9b-8f56-9dd000f54344",
+      event: {},
+      evaluationAt: new Date("2026-04-22T01:59:59.000Z"),
+      appliedAt: new Date("2026-04-22T01:59:59.000Z"),
+      executedAt: new Date("2026-04-22T01:59:59.000Z"),
+      duplicateCount: 0,
+      createdAt: new Date("2026-04-22T01:59:59.000Z"),
+      updatedAt: new Date("2026-04-22T01:59:59.000Z")
+    });
+    const repository = createAutoAdjustExecutionRepository(prismaClient);
+
+    await expect(
+      repository.executeRun({
+        ...input,
+        runKey: "run-20260422-conflict",
+        requestedAt: "2026-04-22T02:00:01.000Z"
+      })
+    ).resolves.toMatchObject({
+      status: "duplicate",
+      duplicateOfRunKey: "run-20260422-previous"
+    });
+    expect(mockQueryRaw).toHaveBeenCalled();
+    expect(mockUpdateListing).not.toHaveBeenCalled();
+    expect(mockUpdateExecution).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          listingId_runKey: {
+            listingId: input.listingId,
+            runKey: "run-20260422-previous"
+          }
+        },
+        data: {
+          duplicateCount: {
+            increment: 1
+          }
+        }
+      })
+    );
+    expect(mockUpdateExecution).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          listingId_runKey: {
+            listingId: input.listingId,
+            runKey: "run-20260422-conflict"
+          }
+        },
+        data: expect.objectContaining({
+          status: "duplicate",
+          eventId: null
+        })
+      })
+    );
+  });
+
+  it("allows the next period after the latest same-rule application is due", async () => {
+    mockFindFirstExecution.mockResolvedValueOnce({
+      id: "previous-execution-id",
+      listingId: input.listingId,
+      runKey: "run-20260422-previous",
+      traceId: input.traceId,
+      ruleRevision: input.ruleRevision,
+      status: "applied",
+      reasonCode: "due-rule-applied",
+      skipReason: null,
+      beforePriceKrw: 1_850_000,
+      afterPriceKrw: 1_702_000,
+      eventId: "fdd23504-9420-5d9b-8f56-9dd000f54344",
+      event: {},
+      evaluationAt: new Date("2026-04-22T02:00:00.000Z"),
+      appliedAt: new Date("2026-04-22T02:00:00.000Z"),
+      executedAt: new Date("2026-04-22T02:00:00.000Z"),
+      duplicateCount: 0,
+      createdAt: new Date("2026-04-22T02:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T02:00:00.000Z")
+    });
+    mockFindUniqueListing.mockResolvedValueOnce({
+      ...listingWithRule,
+      priceKrw: 1_702_000
+    });
+    const repository = createAutoAdjustExecutionRepository(prismaClient);
+
+    await expect(
+      repository.executeRun({
+        ...input,
+        runKey: "run-20260506-001",
+        requestedAt: "2026-05-06T02:00:00.000Z",
+        currentPriceKrw: 1_702_000
+      })
+    ).resolves.toMatchObject({
+      status: "applied",
+      reasonCode: "due-rule-applied",
+      beforePriceKrw: 1_702_000,
+      afterPriceKrw: 1_565_000
+    });
+    expect(mockUpdateListing).toHaveBeenCalledWith({
+      where: {
+        id: input.listingId
+      },
+      data: {
+        priceKrw: 1_565_000
+      }
+    });
   });
 
   it("recovers a partial-failure run key into a single applied result", async () => {
