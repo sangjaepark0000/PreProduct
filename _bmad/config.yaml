@@ -14,8 +14,8 @@ bad:
   retro_timer_seconds: '600'
   context_compaction_threshold: '80'
   stale_timeout_minutes: '60'
-  timer_support: false
-  monitor_support: false
+  timer_support: true
+  monitor_support: true
   model_standard: gpt-5.4
   model_quality: gpt-5.4
   api_usage_threshold: '80'
