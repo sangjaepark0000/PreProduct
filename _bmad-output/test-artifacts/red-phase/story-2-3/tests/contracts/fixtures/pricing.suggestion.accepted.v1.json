@@ -1,0 +1,16 @@
+{
+  "eventId": "981869e6-16a4-5afa-870a-3c93f3c2220e",
+  "occurredAt": "2026-04-22T02:00:00.000Z",
+  "traceId": "trace-story-2-3-atdd",
+  "schemaVersion": "1.0.0",
+  "payload": {
+    "clientRequestId": "client-story-2-3-atdd",
+    "idempotencyKey": "pricing-story-2-3-atdd",
+    "basisRevision": "basis-story-2-3-atdd",
+    "suggestedPriceKrw": 1240000,
+    "confirmedPriceKrw": 1180000,
+    "mode": "edited",
+    "deltaKrw": -60000,
+    "manualReason": "구성품 누락을 반영한 수동 수정"
+  }
+}

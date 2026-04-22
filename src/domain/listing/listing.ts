@@ -2,6 +2,12 @@ import { prelistingStatusSchema } from "@/domain/prelisting-status/prelisting-st
 
 import { z } from "zod";
 
+export const listingPricePolicy = {
+  minPriceKrw: 1,
+  maxPriceKrw: 99_999_999,
+  stepKrw: 1000
+} as const;
+
 export const listingIdSchema = z.uuid();
 
 export type ListingId = z.infer<typeof listingIdSchema>;
@@ -27,7 +33,20 @@ export const createListingInputSchema = z.object({
   keySpecifications: z
     .array(keySpecificationSchema)
     .min(1, "핵심 스펙을 1개 이상 입력해 주세요."),
-  priceKrw: z.coerce.number().int().positive("가격은 1원 이상 입력해 주세요."),
+  priceKrw: z.coerce
+    .number()
+    .int("가격은 정수 원화로 입력해 주세요.")
+    .min(listingPricePolicy.minPriceKrw, "가격은 1원 이상 입력해 주세요.")
+    .max(
+      listingPricePolicy.maxPriceKrw,
+      `가격은 ${listingPricePolicy.maxPriceKrw.toLocaleString(
+        "ko-KR"
+      )}원 이하로 입력해 주세요.`
+    )
+    .refine(
+      (value) => value % listingPricePolicy.stepKrw === 0,
+      "가격은 1,000원 단위로 입력해 주세요."
+    ),
   status: prelistingStatusSchema
 });
 
