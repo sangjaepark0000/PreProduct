@@ -65,6 +65,7 @@ so that 수동 개입 없이 최신 가격 상태를 유지할 수 있다.
 ### Review Findings
 
 - [x] [Review][Patch] Same-listing concurrent runs with different run keys can both apply a discount [src/infra/pricing/auto-adjust-execution.repository.ts] — fixed with listing-level transaction locking, same-rule duplicate detection within the active period, and focused repository regression tests.
+- [x] [Review][Patch] Applied partial-failure retries can reapply a discount when `afterPriceKrw` is missing [src/infra/pricing/auto-adjust-execution.repository.ts] — fixed by treating `appliedAt` as the durable single-apply marker, recovering missing after price from the current listing price, and adding focused repository regression coverage.
 
 ## Dev Notes
 
