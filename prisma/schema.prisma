@@ -17,6 +17,7 @@ model Listing {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   autoAdjustRule    AutoAdjustRule?
+  autoAdjustExecutions AutoAdjustExecution[]
 }
 
 model AutoAdjustRule {
@@ -29,4 +30,28 @@ model AutoAdjustRule {
   enabled             Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+model AutoAdjustExecution {
+  id              String   @id @default(uuid()) @db.Uuid
+  listingId       String   @db.Uuid
+  listing         Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  runKey          String
+  traceId         String
+  ruleRevision    String?
+  status          String
+  reasonCode      String?
+  skipReason      String?
+  beforePriceKrw  Int?
+  afterPriceKrw   Int?
+  eventId         String?  @db.Uuid
+  event           Json?
+  evaluationAt    DateTime
+  appliedAt       DateTime?
+  executedAt      DateTime
+  duplicateCount  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([listingId, runKey])
 }

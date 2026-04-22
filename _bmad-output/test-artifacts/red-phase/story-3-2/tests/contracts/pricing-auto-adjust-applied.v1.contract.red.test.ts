@@ -1,5 +1,5 @@
 const canonicalEvent = {
-  eventId: "8f7f4be7-53a6-48e2-9a8f-0df8f0a4ac12",
+  eventId: "da7ff09a-5629-5d44-a28c-a8fd8748156d",
   occurredAt: "2026-04-22T02:00:00.000Z",
   traceId: "trace-auto-adjust-20260422",
   schemaVersion: "1.0.0" as const,
@@ -9,7 +9,7 @@ const canonicalEvent = {
     runKey: "run-20260422-001",
     beforePriceKrw: 1_850_000,
     afterPriceKrw: 1_702_000,
-    reasonCode: "due-rule-applied",
+    reasonCode: "due-rule-applied" as const,
     appliedAt: "2026-04-22T02:00:00.000Z"
   }
 };
