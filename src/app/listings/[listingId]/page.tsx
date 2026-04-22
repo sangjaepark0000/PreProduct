@@ -178,13 +178,22 @@ export default async function ListingDetailPage({
                       : "아직 설정된 규칙이 없습니다."}
                   </Typography>
                 </Stack>
-                <Button
-                  href={`/listings/${resolvedListing.id}/auto-adjust-rule`}
-                  variant="outlined"
-                  sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
-                >
-                  자동 가격조정 설정
-                </Button>
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <Button
+                    href={`/listings/${resolvedListing.id}/price-change-history`}
+                    variant="outlined"
+                    sx={{ minHeight: 44 }}
+                  >
+                    가격 변경 이력
+                  </Button>
+                  <Button
+                    href={`/listings/${resolvedListing.id}/auto-adjust-rule`}
+                    variant="outlined"
+                    sx={{ minHeight: 44 }}
+                  >
+                    자동 가격조정 설정
+                  </Button>
+                </Stack>
               </Stack>
 
               <Divider />
